@@ -1,0 +1,712 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "languageVersion": "2.0",
+  "contentVersion": "1.0.0.0",
+  "metadata": {
+    "_generator": {
+      "name": "bicep",
+      "version": "0.44.1.10279",
+      "templateHash": "18077895874559969379"
+    }
+  },
+  "parameters": {
+    "environment": {
+      "type": "string",
+      "allowedValues": [
+        "dev",
+        "prod"
+      ],
+      "metadata": {
+        "description": "Environment discriminator. Drives SKU selection and replica counts."
+      }
+    },
+    "location": {
+      "type": "string",
+      "defaultValue": "[resourceGroup().location]",
+      "metadata": {
+        "description": "Azure region. Inherits the resource-group region by default."
+      }
+    },
+    "imageTag": {
+      "type": "string",
+      "defaultValue": "latest",
+      "metadata": {
+        "description": "Container image tag. Use a Git SHA in prod; \"latest\" is fine for dev."
+      }
+    },
+    "sqlAdminLogin": {
+      "type": "string",
+      "defaultValue": "beautyadmin",
+      "metadata": {
+        "description": "SQL Server administrator login name."
+      }
+    },
+    "sqlAdminPassword": {
+      "type": "securestring",
+      "metadata": {
+        "description": "SQL administrator password — upper + lower + digit + special, >= 8 chars."
+      }
+    },
+    "databaseName": {
+      "type": "string",
+      "defaultValue": "BeautyStoreDb",
+      "metadata": {
+        "description": "Name of the Azure SQL database."
+      }
+    },
+    "jwtKey": {
+      "type": "securestring",
+      "metadata": {
+        "description": "JWT signing key — stored as a Container App secret, never in a plaintext env var."
+      }
+    },
+    "allowedOrigins": {
+      "type": "string",
+      "defaultValue": "http://localhost:4200",
+      "metadata": {
+        "description": "Comma-separated CORS allowed origins."
+      }
+    },
+    "existingCaeName": {
+      "type": "string",
+      "metadata": {
+        "description": "Name of the existing Container Apps Environment to host the Container App.\nAzure limits one CAE per region per subscription on Free / Trial tiers.\nMultiple Container Apps from different projects share the same CAE safely.\n"
+      }
+    },
+    "existingCaeResourceGroup": {
+      "type": "string",
+      "metadata": {
+        "description": "Resource group that owns the existing Container Apps Environment."
+      }
+    }
+  },
+  "variables": {
+    "suffix": "[substring(uniqueString(resourceGroup().id), 0, 6)]",
+    "prefix": "[format('beautystore-{0}', parameters('environment'))]",
+    "acrName": "[format('beautystore{0}acr{1}', parameters('environment'), variables('suffix'))]",
+    "containerAppName": "[format('{0}-api', variables('prefix'))]",
+    "tags": {
+      "environment": "[parameters('environment')]",
+      "project": "BeautyStoreCapstone",
+      "iac": "bicep"
+    }
+  },
+  "resources": {
+    "caEnv": {
+      "existing": true,
+      "type": "Microsoft.App/managedEnvironments",
+      "apiVersion": "2024-03-01",
+      "resourceGroup": "[parameters('existingCaeResourceGroup')]",
+      "name": "[parameters('existingCaeName')]"
+    },
+    "serviceBus": {
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2025-04-01",
+      "name": "servicebus-deploy",
+      "properties": {
+        "expressionEvaluationOptions": {
+          "scope": "inner"
+        },
+        "mode": "Incremental",
+        "parameters": {
+          "namespaceName": {
+            "value": "[format('{0}-sb-{1}', variables('prefix'), variables('suffix'))]"
+          },
+          "location": {
+            "value": "[parameters('location')]"
+          },
+          "tags": {
+            "value": "[variables('tags')]"
+          }
+        },
+        "template": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "languageVersion": "2.0",
+          "contentVersion": "1.0.0.0",
+          "metadata": {
+            "_generator": {
+              "name": "bicep",
+              "version": "0.44.1.10279",
+              "templateHash": "17699165945533420844"
+            }
+          },
+          "parameters": {
+            "namespaceName": {
+              "type": "string"
+            },
+            "location": {
+              "type": "string"
+            },
+            "tags": {
+              "type": "object"
+            }
+          },
+          "resources": {
+            "sbNamespace": {
+              "type": "Microsoft.ServiceBus/namespaces",
+              "apiVersion": "2022-10-01-preview",
+              "name": "[parameters('namespaceName')]",
+              "location": "[parameters('location')]",
+              "tags": "[parameters('tags')]",
+              "sku": {
+                "name": "Standard",
+                "tier": "Standard"
+              }
+            },
+            "orderEventsTopic": {
+              "type": "Microsoft.ServiceBus/namespaces/topics",
+              "apiVersion": "2022-10-01-preview",
+              "name": "[format('{0}/{1}', parameters('namespaceName'), 'order-events')]",
+              "properties": {
+                "defaultMessageTimeToLive": "P14D",
+                "requiresDuplicateDetection": true,
+                "duplicateDetectionHistoryTimeWindow": "PT10M",
+                "enableBatchedOperations": true
+              },
+              "dependsOn": [
+                "sbNamespace"
+              ]
+            },
+            "inventorySubscription": {
+              "type": "Microsoft.ServiceBus/namespaces/topics/subscriptions",
+              "apiVersion": "2022-10-01-preview",
+              "name": "[format('{0}/{1}/{2}', parameters('namespaceName'), 'order-events', 'inventory-subscription')]",
+              "properties": {
+                "maxDeliveryCount": 10,
+                "lockDuration": "PT1M",
+                "deadLetteringOnMessageExpiration": true,
+                "enableBatchedOperations": true
+              },
+              "dependsOn": [
+                "orderEventsTopic"
+              ]
+            },
+            "shippingSubscription": {
+              "type": "Microsoft.ServiceBus/namespaces/topics/subscriptions",
+              "apiVersion": "2022-10-01-preview",
+              "name": "[format('{0}/{1}/{2}', parameters('namespaceName'), 'order-events', 'shipping-subscription')]",
+              "properties": {
+                "maxDeliveryCount": 10,
+                "lockDuration": "PT1M",
+                "deadLetteringOnMessageExpiration": true,
+                "enableBatchedOperations": true
+              },
+              "dependsOn": [
+                "orderEventsTopic"
+              ]
+            }
+          },
+          "outputs": {
+            "namespaceName": {
+              "type": "string",
+              "value": "[parameters('namespaceName')]"
+            },
+            "connectionString": {
+              "type": "securestring",
+              "value": "[listKeys(format('{0}/AuthorizationRules/RootManageSharedAccessKey', resourceId('Microsoft.ServiceBus/namespaces', parameters('namespaceName'))), '2022-10-01-preview').primaryConnectionString]"
+            }
+          }
+        }
+      }
+    },
+    "sql": {
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2025-04-01",
+      "name": "sql-deploy",
+      "properties": {
+        "expressionEvaluationOptions": {
+          "scope": "inner"
+        },
+        "mode": "Incremental",
+        "parameters": {
+          "serverName": {
+            "value": "[format('{0}-sql-{1}', variables('prefix'), variables('suffix'))]"
+          },
+          "location": {
+            "value": "[parameters('location')]"
+          },
+          "tags": {
+            "value": "[variables('tags')]"
+          },
+          "adminLogin": {
+            "value": "[parameters('sqlAdminLogin')]"
+          },
+          "adminPassword": {
+            "value": "[parameters('sqlAdminPassword')]"
+          },
+          "databaseName": {
+            "value": "[parameters('databaseName')]"
+          },
+          "skuName": "[if(equals(parameters('environment'), 'prod'), createObject('value', 'S1'), createObject('value', 'Basic'))]",
+          "skuTier": "[if(equals(parameters('environment'), 'prod'), createObject('value', 'Standard'), createObject('value', 'Basic'))]"
+        },
+        "template": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "languageVersion": "2.0",
+          "contentVersion": "1.0.0.0",
+          "metadata": {
+            "_generator": {
+              "name": "bicep",
+              "version": "0.44.1.10279",
+              "templateHash": "5744679793769557357"
+            }
+          },
+          "parameters": {
+            "serverName": {
+              "type": "string"
+            },
+            "location": {
+              "type": "string"
+            },
+            "tags": {
+              "type": "object"
+            },
+            "databaseName": {
+              "type": "string",
+              "defaultValue": "BeautyStoreDb"
+            },
+            "adminLogin": {
+              "type": "string",
+              "metadata": {
+                "description": "SQL Server admin login. Cannot be \"admin\", \"sa\", \"root\", or \"administrator\"."
+              }
+            },
+            "adminPassword": {
+              "type": "securestring",
+              "metadata": {
+                "description": "SQL admin password. Requires upper + lower + digit + special, >= 8 chars."
+              }
+            },
+            "skuName": {
+              "type": "string",
+              "defaultValue": "Basic",
+              "metadata": {
+                "description": "DTU SKU name. Basic = 5 DTU (~$5/mo). S1 = 20 DTU (~$30/mo)."
+              }
+            },
+            "skuTier": {
+              "type": "string",
+              "defaultValue": "Basic",
+              "metadata": {
+                "description": "Pricing tier matching the SKU name."
+              }
+            }
+          },
+          "resources": {
+            "sqlServer": {
+              "type": "Microsoft.Sql/servers",
+              "apiVersion": "2023-05-01-preview",
+              "name": "[parameters('serverName')]",
+              "location": "[parameters('location')]",
+              "tags": "[parameters('tags')]",
+              "properties": {
+                "administratorLogin": "[parameters('adminLogin')]",
+                "administratorLoginPassword": "[parameters('adminPassword')]",
+                "version": "12.0",
+                "minimalTlsVersion": "1.2",
+                "publicNetworkAccess": "Enabled"
+              }
+            },
+            "allowAzureServices": {
+              "type": "Microsoft.Sql/servers/firewallRules",
+              "apiVersion": "2023-05-01-preview",
+              "name": "[format('{0}/{1}', parameters('serverName'), 'AllowAzureServices')]",
+              "properties": {
+                "startIpAddress": "0.0.0.0",
+                "endIpAddress": "0.0.0.0"
+              },
+              "dependsOn": [
+                "sqlServer"
+              ]
+            },
+            "sqlDatabase": {
+              "type": "Microsoft.Sql/servers/databases",
+              "apiVersion": "2023-05-01-preview",
+              "name": "[format('{0}/{1}', parameters('serverName'), parameters('databaseName'))]",
+              "location": "[parameters('location')]",
+              "tags": "[parameters('tags')]",
+              "sku": {
+                "name": "[parameters('skuName')]",
+                "tier": "[parameters('skuTier')]"
+              },
+              "properties": {
+                "collation": "SQL_Latin1_General_CP1_CI_AS",
+                "requestedBackupStorageRedundancy": "Local"
+              },
+              "dependsOn": [
+                "sqlServer"
+              ]
+            }
+          },
+          "outputs": {
+            "serverName": {
+              "type": "string",
+              "value": "[parameters('serverName')]"
+            },
+            "serverFqdn": {
+              "type": "string",
+              "value": "[reference('sqlServer').fullyQualifiedDomainName]"
+            },
+            "connectionString": {
+              "type": "securestring",
+              "value": "[format('Server=tcp:{0},1433;Database={1};User ID={2};Password={3};Encrypt=True;TrustServerCertificate=False;Connection Timeout=30;', reference('sqlServer').fullyQualifiedDomainName, parameters('databaseName'), parameters('adminLogin'), parameters('adminPassword'))]"
+            }
+          }
+        }
+      }
+    },
+    "api": {
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2025-04-01",
+      "name": "api-deploy",
+      "properties": {
+        "expressionEvaluationOptions": {
+          "scope": "inner"
+        },
+        "mode": "Incremental",
+        "parameters": {
+          "acrName": {
+            "value": "[variables('acrName')]"
+          },
+          "containerAppName": {
+            "value": "[variables('containerAppName')]"
+          },
+          "location": {
+            "value": "[parameters('location')]"
+          },
+          "tags": {
+            "value": "[variables('tags')]"
+          },
+          "environmentId": {
+            "value": "[extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, parameters('existingCaeResourceGroup')), 'Microsoft.App/managedEnvironments', parameters('existingCaeName'))]"
+          },
+          "imageTag": {
+            "value": "[parameters('imageTag')]"
+          },
+          "jwtKey": {
+            "value": "[parameters('jwtKey')]"
+          },
+          "serviceBusConnectionString": {
+            "value": "[listOutputsWithSecureValues('serviceBus', '2025-04-01').connectionString]"
+          },
+          "sqlConnectionString": {
+            "value": "[listOutputsWithSecureValues('sql', '2025-04-01').connectionString]"
+          },
+          "allowedOrigins": {
+            "value": "[parameters('allowedOrigins')]"
+          },
+          "databaseName": {
+            "value": "[parameters('databaseName')]"
+          },
+          "acrSku": "[if(equals(parameters('environment'), 'prod'), createObject('value', 'Standard'), createObject('value', 'Basic'))]",
+          "minReplicas": "[if(equals(parameters('environment'), 'prod'), createObject('value', 2), createObject('value', 0))]",
+          "maxReplicas": "[if(equals(parameters('environment'), 'prod'), createObject('value', 10), createObject('value', 3))]",
+          "cpu": "[if(equals(parameters('environment'), 'prod'), createObject('value', '0.5'), createObject('value', '0.25'))]",
+          "memory": "[if(equals(parameters('environment'), 'prod'), createObject('value', '1Gi'), createObject('value', '0.5Gi'))]"
+        },
+        "template": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "metadata": {
+            "_generator": {
+              "name": "bicep",
+              "version": "0.44.1.10279",
+              "templateHash": "6280552415600187966"
+            }
+          },
+          "parameters": {
+            "acrName": {
+              "type": "string",
+              "metadata": {
+                "description": "Name of the Azure Container Registry. Alphanumeric only, 5-50 chars."
+              }
+            },
+            "containerAppName": {
+              "type": "string",
+              "metadata": {
+                "description": "Name of the Azure Container App."
+              }
+            },
+            "location": {
+              "type": "string"
+            },
+            "tags": {
+              "type": "object"
+            },
+            "environmentId": {
+              "type": "string",
+              "metadata": {
+                "description": "Resource ID of the Container Apps Environment."
+              }
+            },
+            "imageTag": {
+              "type": "string",
+              "defaultValue": "latest",
+              "metadata": {
+                "description": "Container image tag. \"latest\" for dev; Git SHA for prod."
+              }
+            },
+            "jwtKey": {
+              "type": "securestring"
+            },
+            "serviceBusConnectionString": {
+              "type": "securestring"
+            },
+            "sqlConnectionString": {
+              "type": "securestring"
+            },
+            "allowedOrigins": {
+              "type": "string"
+            },
+            "databaseName": {
+              "type": "string",
+              "defaultValue": "BeautyStoreDb"
+            },
+            "minReplicas": {
+              "type": "int",
+              "defaultValue": 0,
+              "metadata": {
+                "description": "Minimum replicas. Set 0 for scale-to-zero in dev (idle cost = $0)."
+              }
+            },
+            "maxReplicas": {
+              "type": "int",
+              "defaultValue": 3,
+              "metadata": {
+                "description": "Maximum replicas under load."
+              }
+            },
+            "cpu": {
+              "type": "string",
+              "defaultValue": "0.25",
+              "metadata": {
+                "description": "vCPU allocation per replica. Must be a string; any(json()) converts it to a decimal for ARM."
+              }
+            },
+            "memory": {
+              "type": "string",
+              "defaultValue": "0.5Gi",
+              "metadata": {
+                "description": "Memory per replica, e.g. \"0.5Gi\" or \"1Gi\"."
+              }
+            },
+            "acrSku": {
+              "type": "string",
+              "defaultValue": "Basic",
+              "allowedValues": [
+                "Basic",
+                "Standard",
+                "Premium"
+              ]
+            }
+          },
+          "resources": [
+            {
+              "type": "Microsoft.ContainerRegistry/registries",
+              "apiVersion": "2023-11-01-preview",
+              "name": "[parameters('acrName')]",
+              "location": "[parameters('location')]",
+              "tags": "[parameters('tags')]",
+              "sku": {
+                "name": "[parameters('acrSku')]"
+              },
+              "properties": {
+                "adminUserEnabled": true
+              }
+            },
+            {
+              "type": "Microsoft.App/containerApps",
+              "apiVersion": "2024-03-01",
+              "name": "[parameters('containerAppName')]",
+              "location": "[parameters('location')]",
+              "tags": "[parameters('tags')]",
+              "properties": {
+                "environmentId": "[parameters('environmentId')]",
+                "configuration": {
+                  "ingress": {
+                    "external": true,
+                    "targetPort": 8080,
+                    "transport": "http",
+                    "allowInsecure": false
+                  },
+                  "registries": [
+                    {
+                      "server": "[reference(resourceId('Microsoft.ContainerRegistry/registries', parameters('acrName')), '2023-11-01-preview').loginServer]",
+                      "username": "[listCredentials(resourceId('Microsoft.ContainerRegistry/registries', parameters('acrName')), '2023-11-01-preview').username]",
+                      "passwordSecretRef": "registry-password"
+                    }
+                  ],
+                  "secrets": [
+                    {
+                      "name": "registry-password",
+                      "value": "[listCredentials(resourceId('Microsoft.ContainerRegistry/registries', parameters('acrName')), '2023-11-01-preview').passwords[0].value]"
+                    },
+                    {
+                      "name": "jwt-key",
+                      "value": "[parameters('jwtKey')]"
+                    },
+                    {
+                      "name": "service-bus-conn",
+                      "value": "[parameters('serviceBusConnectionString')]"
+                    },
+                    {
+                      "name": "sql-conn",
+                      "value": "[parameters('sqlConnectionString')]"
+                    }
+                  ]
+                },
+                "template": {
+                  "containers": [
+                    {
+                      "name": "beautystore-api",
+                      "image": "[format('{0}/beautystoreapi:{1}', reference(resourceId('Microsoft.ContainerRegistry/registries', parameters('acrName')), '2023-11-01-preview').loginServer, parameters('imageTag'))]",
+                      "resources": {
+                        "cpu": "[json(parameters('cpu'))]",
+                        "memory": "[parameters('memory')]"
+                      },
+                      "env": [
+                        {
+                          "name": "ASPNETCORE_ENVIRONMENT",
+                          "value": "Production"
+                        },
+                        {
+                          "name": "ASPNETCORE_URLS",
+                          "value": "http://+:8080"
+                        },
+                        {
+                          "name": "Jwt__Key",
+                          "secretRef": "jwt-key"
+                        },
+                        {
+                          "name": "Jwt__Issuer",
+                          "value": "BeautyStoreApi"
+                        },
+                        {
+                          "name": "Jwt__Audience",
+                          "value": "BeautyStoreApi"
+                        },
+                        {
+                          "name": "Jwt__ExpiryMinutes",
+                          "value": "15"
+                        },
+                        {
+                          "name": "Jwt__RefreshExpiryDays",
+                          "value": "7"
+                        },
+                        {
+                          "name": "[format('ConnectionStrings__{0}', parameters('databaseName'))]",
+                          "secretRef": "sql-conn"
+                        },
+                        {
+                          "name": "ServiceBus__ConnectionString",
+                          "secretRef": "service-bus-conn"
+                        },
+                        {
+                          "name": "ServiceBus__OrderEventsTopic",
+                          "value": "order-events"
+                        },
+                        {
+                          "name": "ServiceBus__InventorySubscription",
+                          "value": "inventory-subscription"
+                        },
+                        {
+                          "name": "ServiceBus__ShippingSubscription",
+                          "value": "shipping-subscription"
+                        },
+                        {
+                          "name": "AllowedOrigins",
+                          "value": "[parameters('allowedOrigins')]"
+                        }
+                      ],
+                      "probes": [
+                        {
+                          "type": "Liveness",
+                          "httpGet": {
+                            "path": "/health",
+                            "port": 8080,
+                            "scheme": "HTTP"
+                          },
+                          "initialDelaySeconds": 15,
+                          "periodSeconds": 30,
+                          "failureThreshold": 3
+                        },
+                        {
+                          "type": "Readiness",
+                          "httpGet": {
+                            "path": "/health",
+                            "port": 8080,
+                            "scheme": "HTTP"
+                          },
+                          "initialDelaySeconds": 5,
+                          "periodSeconds": 10,
+                          "successThreshold": 1
+                        }
+                      ]
+                    }
+                  ],
+                  "scale": {
+                    "minReplicas": "[parameters('minReplicas')]",
+                    "maxReplicas": "[parameters('maxReplicas')]",
+                    "rules": [
+                      {
+                        "name": "http-concurrency",
+                        "http": {
+                          "metadata": {
+                            "concurrentRequests": "20"
+                          }
+                        }
+                      }
+                    ]
+                  }
+                }
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.ContainerRegistry/registries', parameters('acrName'))]"
+              ]
+            }
+          ],
+          "outputs": {
+            "url": {
+              "type": "string",
+              "value": "[format('https://{0}', reference(resourceId('Microsoft.App/containerApps', parameters('containerAppName')), '2024-03-01').configuration.ingress.fqdn)]"
+            },
+            "acrLoginServer": {
+              "type": "string",
+              "value": "[reference(resourceId('Microsoft.ContainerRegistry/registries', parameters('acrName')), '2023-11-01-preview').loginServer]"
+            },
+            "containerAppName": {
+              "type": "string",
+              "value": "[parameters('containerAppName')]"
+            }
+          }
+        }
+      },
+      "dependsOn": [
+        "serviceBus",
+        "sql"
+      ]
+    }
+  },
+  "outputs": {
+    "apiUrl": {
+      "type": "string",
+      "value": "[reference('api').outputs.url.value]"
+    },
+    "acrLoginServer": {
+      "type": "string",
+      "value": "[reference('api').outputs.acrLoginServer.value]"
+    },
+    "sqlServerName": {
+      "type": "string",
+      "value": "[reference('sql').outputs.serverName.value]"
+    },
+    "databaseName": {
+      "type": "string",
+      "value": "[parameters('databaseName')]"
+    },
+    "serviceBusNamespace": {
+      "type": "string",
+      "value": "[reference('serviceBus').outputs.namespaceName.value]"
+    }
+  }
+}
