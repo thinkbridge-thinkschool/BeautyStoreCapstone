@@ -32,10 +32,12 @@ param allowedOrigins  = 'https://beautystore.azurestaticapps.net'
 
 // readEnvironmentVariable(name, fallback)
 // The fallback silences the Bicep language server on developer machines where
-// the env var is not set. The CI/CD runner always has the real value, so the
-// fallback string is never used in an actual deployment.
-param jwtKey           = readEnvironmentVariable('BEAUTY_JWT_KEY',            'prod-jwt-key-minimum-32-chars-!!')
+// the env var is not set. The CI/CD runner always has the real value.
 param sqlAdminPassword = readEnvironmentVariable('BEAUTY_SQL_ADMIN_PASSWORD', 'BeautyStore@Prod2026!')
+// Entra ID — NOT secrets. Tenant and client IDs are public identifiers.
+// Still passed via env vars so the same bicepparam works in CI without edits.
+param tenantId         = readEnvironmentVariable('BEAUTY_ENTRA_TENANT_ID', '<your-entra-tenant-id>')
+param clientId         = readEnvironmentVariable('BEAUTY_ENTRA_CLIENT_ID', '<your-app-registration-client-id>')
 
 // ── Existing Container Apps Environment ───────────────────────────────────────
 // Replace with the name and resource group of your prod CAE once provisioned.

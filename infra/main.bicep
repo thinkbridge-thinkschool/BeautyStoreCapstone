@@ -42,9 +42,11 @@ param sqlAdminPassword string
 @description('Name of the Azure SQL database.')
 param databaseName string = 'BeautyStoreDb'
 
-@secure()
-@description('JWT signing key — stored as a Container App secret, never in a plaintext env var.')
-param jwtKey string
+@description('Entra ID tenant ID for JWT validation. Not a secret — safe in source control.')
+param tenantId string
+
+@description('App Registration client ID (= API audience). Not a secret.')
+param clientId string
 
 @description('Comma-separated CORS allowed origins.')
 param allowedOrigins string = 'http://localhost:4200'
@@ -115,22 +117,23 @@ module sql './modules/sql.bicep' = {
 module api './modules/api.bicep' = {
   name  : 'api-deploy'
   params: {
-    acrName                   : acrName
-    containerAppName          : containerAppName
-    location                  : location
-    tags                      : tags
-    environmentId             : caEnv.id
-    imageTag                  : imageTag
-    jwtKey                    : jwtKey
-    serviceBusConnectionString: serviceBus.outputs.connectionString
-    sqlConnectionString       : sql.outputs.connectionString
-    allowedOrigins            : allowedOrigins
-    databaseName              : databaseName
-    acrSku                    : environment == 'prod' ? 'Standard' : 'Basic'
-    minReplicas               : environment == 'prod' ? 2          : 0
-    maxReplicas               : environment == 'prod' ? 10         : 3
-    cpu                       : environment == 'prod' ? '0.5'      : '0.25'
-    memory                    : environment == 'prod' ? '1Gi'      : '0.5Gi'
+    acrName             : acrName
+    containerAppName    : containerAppName
+    location            : location
+    tags                : tags
+    environmentId       : caEnv.id
+    imageTag            : imageTag
+    tenantId            : tenantId
+    clientId            : clientId
+    serviceBusNamespace : serviceBus.outputs.namespaceName
+    sqlServerFqdn       : sql.outputs.serverFqdn
+    allowedOrigins      : allowedOrigins
+    databaseName        : databaseName
+    acrSku              : environment == 'prod' ? 'Standard' : 'Basic'
+    minReplicas         : environment == 'prod' ? 2          : 0
+    maxReplicas         : environment == 'prod' ? 10         : 3
+    cpu                 : environment == 'prod' ? '0.5'      : '0.25'
+    memory              : environment == 'prod' ? '1Gi'      : '0.5Gi'
   }
 }
 

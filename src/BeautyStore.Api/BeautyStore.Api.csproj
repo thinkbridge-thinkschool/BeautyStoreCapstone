@@ -22,6 +22,9 @@
       <PrivateAssets>all</PrivateAssets>
     </PackageReference>
 
+    <!-- Azure Identity — DefaultAzureCredential for MSI (Service Bus + SQL) -->
+    <PackageReference Include="Azure.Identity"             Version="1.*" />
+
     <!-- Azure Service Bus — publish OrderCreated events -->
     <PackageReference Include="Azure.Messaging.ServiceBus" Version="7.*" />
 

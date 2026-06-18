@@ -1,37 +1,28 @@
-using System.Text;
+using Azure.Identity;
 using Azure.Messaging.ServiceBus;
 using BeautyStore.Api.Data;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.IdentityModel.Tokens;
 using Scalar.AspNetCore;
 
 // ── Builder ───────────────────────────────────────────────────────────────────
 
 var builder = WebApplication.CreateBuilder(args);
 
-// ── JWT Authentication ────────────────────────────────────────────────────────
-// Jwt:Key, Jwt:Issuer, Jwt:Audience are injected as Container App secrets.
-// Locally, set them in appsettings.Development.json (never commit real secrets).
+// ── Entra ID Authentication ───────────────────────────────────────────────────
+// TenantId and ClientId are NOT secrets — safe in appsettings / env vars.
+// Entra ID validates tokens via its public JWKS endpoint; no symmetric key needed.
 
-var jwtKey      = builder.Configuration["Jwt:Key"]      ?? throw new InvalidOperationException("Jwt:Key is required.");
-var jwtIssuer   = builder.Configuration["Jwt:Issuer"]   ?? "BeautyStoreApi";
-var jwtAudience = builder.Configuration["Jwt:Audience"] ?? "BeautyStoreApi";
+var tenantId = builder.Configuration["AzureAd:TenantId"] ?? throw new InvalidOperationException("AzureAd:TenantId is required.");
+var clientId = builder.Configuration["AzureAd:ClientId"] ?? throw new InvalidOperationException("AzureAd:ClientId is required.");
 
 builder.Services
     .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
     {
-        options.TokenValidationParameters = new TokenValidationParameters
-        {
-            ValidateIssuerSigningKey = true,
-            IssuerSigningKey         = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey)),
-            ValidIssuer              = jwtIssuer,
-            ValidAudience            = jwtAudience,
-            ValidateLifetime         = true,
-            ClockSkew                = TimeSpan.FromSeconds(30),
-        };
+        options.Authority = $"https://login.microsoftonline.com/{tenantId}/v2.0";
+        options.Audience  = clientId;
     });
 
 builder.Services.AddAuthorization();
@@ -50,11 +41,11 @@ builder.Services.AddCors(options =>
               .AllowAnyHeader()
               .AllowAnyMethod()));
 
-// ── Database (EF Core + SQL Server) ──────────────────────────────────────────
-// ASP.NET Core maps ConnectionStrings__BeautyStoreDb (Container App env var)
-// to configuration key "ConnectionStrings:BeautyStoreDb".
-// Omit the connection string in local dev to skip DB registration entirely —
-// the catalog products endpoint is hardcoded and requires no database.
+// ── Database (EF Core + SQL Server — Managed Identity) ───────────────────────
+// Connection string uses "Authentication=Active Directory Managed Identity".
+// No User ID or Password — the Container App System-Assigned MSI authenticates.
+// Grant db_datareader + db_datawriter to the MSI via T-SQL after first deploy.
+// Omit locally to skip DB registration — catalog endpoint is hardcoded.
 
 var connectionString = builder.Configuration.GetConnectionString("BeautyStoreDb");
 var dbAvailable      = !string.IsNullOrWhiteSpace(connectionString);
@@ -69,14 +60,15 @@ if (dbAvailable)
         }));
 }
 
-// ── Azure Service Bus ─────────────────────────────────────────────────────────
-// ServiceBus:ConnectionString is injected as a Container App secret.
-// Register as singleton — ServiceBusClient is thread-safe and meant to be reused.
+// ── Azure Service Bus (Managed Identity) ─────────────────────────────────────
+// ServiceBus:Namespace is the FQDN: "beautystore-dev-sb-xxxxx.servicebus.windows.net"
+// DefaultAzureCredential uses the Container App System-Assigned MSI in Azure,
+// and developer credentials (Azure CLI / VS Code) locally.
 
-var serviceBusConnectionString = builder.Configuration["ServiceBus:ConnectionString"];
-if (!string.IsNullOrWhiteSpace(serviceBusConnectionString))
+var sbNamespace = builder.Configuration["ServiceBus:Namespace"];
+if (!string.IsNullOrWhiteSpace(sbNamespace))
 {
-    builder.Services.AddSingleton(_ => new ServiceBusClient(serviceBusConnectionString));
+    builder.Services.AddSingleton(_ => new ServiceBusClient(sbNamespace, new DefaultAzureCredential()));
 }
 
 // ── Health Checks ─────────────────────────────────────────────────────────────

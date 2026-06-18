@@ -11,14 +11,16 @@ using './main.bicep'
 //   • JWT key has no value outside this dev Container App.
 //   Never copy these values into prod.
 
-param environment     = 'dev'
-param location        = 'centralindia'
-param imageTag        = 'latest'
-param sqlAdminLogin   = 'beautyadmin'
+param environment      = 'dev'
+param location         = 'centralindia'
+param imageTag         = 'latest'
+param sqlAdminLogin    = 'beautyadmin'
 param sqlAdminPassword = 'Dev@Passw0rd!'
-param databaseName    = 'BeautyStoreDb'
-param jwtKey          = 'dev-only-insecure-key-32chars-!!'
-param allowedOrigins  = 'http://localhost:4200'
+param databaseName     = 'BeautyStoreDb'
+// Entra ID — NOT secrets. Replace with your App Registration values.
+param tenantId         = 'abcb3509-e099-4c7c-88c5-1a2f27ee93b5'
+param clientId         = '37c13986-f680-4593-95ec-49d0c1eb62de'
+param allowedOrigins   = 'http://localhost:4200'
 
 // ── Existing Container Apps Environment ───────────────────────────────────────
 // Azure Free / Trial subscriptions allow exactly ONE Container Apps Environment

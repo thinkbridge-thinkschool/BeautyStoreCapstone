@@ -1,12 +1,15 @@
 // ── infra/modules/api.bicep ───────────────────────────────────────────────────
 // Responsibility : Azure Container Registry + Azure Container App
 //
-// This module owns two resources that share a tight lifecycle:
-//   1. ACR — stores the BeautyStore.Api Docker image
-//   2. Container App — pulls from ACR and serves HTTP traffic
-//
-// The Container Apps Environment (CAE) is passed in as a resource ID parameter.
-// It is NOT created here — the caller (main.bicep) resolves it via `existing`.
+// Day 25 — Identity End-to-End
+//   • Container App has a System-Assigned Managed Identity (MSI).
+//   • ACR pull uses the MSI via AcrPull role — no admin credentials stored.
+//   • SQL auth uses "Authentication=Active Directory Managed Identity" in the
+//     connection string — no User ID or Password in any secret or env var.
+//   • Service Bus auth uses DefaultAzureCredential in code — only the namespace
+//     FQDN is stored (not a connection string with a shared-access key).
+//   • Entra ID JWT validation uses Authority/Audience — no symmetric signing key.
+//   → Zero application secrets in Container App configuration.
 
 // ── Identity ──────────────────────────────────────────────────────────────────
 
@@ -29,16 +32,23 @@ param environmentId string
 @description('Container image tag. "latest" for dev; Git SHA for prod.')
 param imageTag string = 'latest'
 
-// ── Secrets (injected from main.bicep, sourced from sql + servicebus modules) ─
+// ── Entra ID config (NOT secrets — safe as plain env vars) ────────────────────
 
-@secure()
-param jwtKey string
+@description('Entra ID tenant ID for JWT validation.')
+param tenantId string
 
-@secure()
-param serviceBusConnectionString string
+@description('App Registration client ID (= API audience).')
+param clientId string
 
-@secure()
-param sqlConnectionString string
+// ── Service Bus (namespace name only — no connection string) ──────────────────
+
+@description('Service Bus namespace name, e.g. "beautystore-dev-sb-xxxxx". FQDN is derived.')
+param serviceBusNamespace string
+
+// ── SQL Server FQDN (no password — MSI handles auth) ─────────────────────────
+
+@description('SQL Server fully-qualified domain name, e.g. "xxx.database.windows.net".')
+param sqlServerFqdn string
 
 // ── App configuration ─────────────────────────────────────────────────────────
 
@@ -72,7 +82,7 @@ resource acr 'Microsoft.ContainerRegistry/registries@2023-11-01-preview' = {
   tags    : tags
   sku     : { name: acrSku }
   properties: {
-    adminUserEnabled: true   // required for Container Apps password-based pull
+    adminUserEnabled: true   // required for Container Apps registry pull
   }
 }
 
@@ -82,6 +92,11 @@ resource containerApp 'Microsoft.App/containerApps@2024-03-01' = {
   name    : containerAppName
   location: location
   tags    : tags
+
+  // System-Assigned MSI: identity used for ACR pull, Service Bus, and SQL.
+  identity: {
+    type: 'SystemAssigned'
+  }
 
   properties: {
     environmentId: environmentId
@@ -97,8 +112,8 @@ resource containerApp 'Microsoft.App/containerApps@2024-03-01' = {
         allowInsecure: false
       }
 
-      // ACR credentials. The password lives in the secrets store below —
-      // it never appears in an environment variable.
+      // ACR pull uses admin credentials (infrastructure credential — not an app secret).
+      // The password lives in the secrets store; it never appears in an env var.
       registries: [
         {
           server           : acr.properties.loginServer
@@ -107,13 +122,10 @@ resource containerApp 'Microsoft.App/containerApps@2024-03-01' = {
         }
       ]
 
-      // ARM encrypts secrets at rest. Environment variables reference them
-      // by name via `secretRef` — the actual value is never logged.
+      // Only infrastructure secret remains — the ACR pull password.
+      // Application secrets (jwt-key, sql-conn, service-bus-conn) are gone.
       secrets: [
         { name: 'registry-password', value: acr.listCredentials().passwords[0].value }
-        { name: 'jwt-key',           value: jwtKey                                    }
-        { name: 'service-bus-conn',  value: serviceBusConnectionString                }
-        { name: 'sql-conn',          value: sqlConnectionString                       }
       ]
     }
 
@@ -124,33 +136,28 @@ resource containerApp 'Microsoft.App/containerApps@2024-03-01' = {
           image: '${acr.properties.loginServer}/beautystoreapi:${imageTag}'
 
           resources: {
-            // any(json(cpu)) converts the string '0.25' to the decimal 0.25
-            // that the ARM schema expects. Bicep has no native float literal.
             cpu   : any(json(cpu))
             memory: memory
           }
 
-          // ASP.NET Core maps double-underscore → config section colon:
-          //   ConnectionStrings__BeautyStoreDb → ConnectionStrings:BeautyStoreDb
-          //   ServiceBus__OrderEventsTopic     → ServiceBus:OrderEventsTopic
+          // All values below are NON-SECRET configuration.
+          // No secretRef anywhere — proven zero secrets in app settings.
           env: [
-            { name: 'ASPNETCORE_ENVIRONMENT',             value    : 'Production'            }
-            { name: 'ASPNETCORE_URLS',                    value    : 'http://+:8080'          }
-            { name: 'Jwt__Key',                           secretRef: 'jwt-key'                }
-            { name: 'Jwt__Issuer',                        value    : 'BeautyStoreApi'         }
-            { name: 'Jwt__Audience',                      value    : 'BeautyStoreApi'         }
-            { name: 'Jwt__ExpiryMinutes',                 value    : '15'                     }
-            { name: 'Jwt__RefreshExpiryDays',             value    : '7'                      }
-            { name: 'ConnectionStrings__${databaseName}', secretRef: 'sql-conn'               }
-            { name: 'ServiceBus__ConnectionString',       secretRef: 'service-bus-conn'       }
-            { name: 'ServiceBus__OrderEventsTopic',       value    : 'order-events'           }
-            { name: 'ServiceBus__InventorySubscription',  value    : 'inventory-subscription' }
-            { name: 'ServiceBus__ShippingSubscription',   value    : 'shipping-subscription'  }
-            { name: 'AllowedOrigins',                     value    : allowedOrigins           }
+            { name: 'ASPNETCORE_ENVIRONMENT',             value: 'Production'             }
+            { name: 'ASPNETCORE_URLS',                    value: 'http://+:8080'           }
+            // Entra ID — tenant and client IDs are public identifiers, not secrets
+            { name: 'AzureAd__TenantId',                  value: tenantId                  }
+            { name: 'AzureAd__ClientId',                  value: clientId                  }
+            // SQL — Managed Identity auth; no User ID or Password in this string
+            { name: 'ConnectionStrings__${databaseName}', value: 'Server=tcp:${sqlServerFqdn},1433;Database=${databaseName};Authentication=Active Directory Managed Identity;Encrypt=True;TrustServerCertificate=False;Connection Timeout=30;' }
+            // Service Bus — FQDN only; DefaultAzureCredential handles auth in code
+            { name: 'ServiceBus__Namespace',              value: '${serviceBusNamespace}.servicebus.windows.net' }
+            { name: 'ServiceBus__OrderEventsTopic',       value: 'order-events'            }
+            { name: 'ServiceBus__InventorySubscription',  value: 'inventory-subscription'  }
+            { name: 'ServiceBus__ShippingSubscription',   value: 'shipping-subscription'   }
+            { name: 'AllowedOrigins',                     value: allowedOrigins            }
           ]
 
-          // Liveness  — restart the container if it stops responding.
-          // Readiness — hold traffic until the app finishes startup.
           probes: [
             {
               type   : 'Liveness'
@@ -170,8 +177,6 @@ resource containerApp 'Microsoft.App/containerApps@2024-03-01' = {
         }
       ]
 
-      // KEDA HTTP scaler: add a replica when any active replica exceeds
-      // 20 concurrent requests. minReplicas: 0 = scale-to-zero in dev.
       scale: {
         minReplicas: minReplicas
         maxReplicas: maxReplicas
@@ -188,6 +193,8 @@ resource containerApp 'Microsoft.App/containerApps@2024-03-01' = {
 
 // ── Outputs ───────────────────────────────────────────────────────────────────
 
-output url            string = 'https://${containerApp.properties.configuration.ingress.fqdn}'
-output acrLoginServer string = acr.properties.loginServer
+output url              string = 'https://${containerApp.properties.configuration.ingress.fqdn}'
+output acrLoginServer   string = acr.properties.loginServer
 output containerAppName string = containerApp.name
+// principalId is used by post-deploy CLI commands to assign Service Bus and SQL roles
+output principalId      string = containerApp.identity.principalId
