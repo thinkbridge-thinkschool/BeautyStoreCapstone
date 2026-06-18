@@ -1,0 +1,44 @@
+<app-hero />
+
+<section class="products-section">
+  <div class="container">
+    <h2 class="section-title">Featured Products</h2>
+    <p class="section-subtitle">Editor-curated picks from the world's best beauty brands</p>
+
+    @if (productsResource.isLoading()) {
+      <div class="product-grid">
+        @for (skeleton of skeletons; track $index) {
+          <div class="skeleton-card">
+            <div class="skeleton-image shimmer"></div>
+            <div class="skeleton-body">
+              <div class="skeleton-line shimmer" style="width: 60%"></div>
+              <div class="skeleton-line shimmer" style="width: 80%"></div>
+              <div class="skeleton-line shimmer" style="width: 40%"></div>
+            </div>
+          </div>
+        }
+      </div>
+    }
+
+    @if (productsResource.hasValue()) {
+      <div class="product-grid">
+        @for (product of productsResource.value(); track product.id) {
+          <app-product-card [product]="product" />
+        }
+      </div>
+      <div class="view-all-wrap">
+        <button class="btn-view-all">View All Products</button>
+      </div>
+    }
+
+    @if (productsResource.error()) {
+      <div class="error-state">
+        <p>Something went wrong loading products.</p>
+        <button class="btn-retry" (click)="productsResource.reload()">Try again</button>
+      </div>
+    }
+  </div>
+</section>
+
+<app-benefits />
+<app-footer />

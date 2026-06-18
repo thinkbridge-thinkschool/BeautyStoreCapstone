@@ -1,0 +1,16 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentParameters.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "environment":              { "value": "${ENVIRONMENT}" },
+    "location":                 { "value": "${AZURE_LOCATION}" },
+    "imageTag":                 { "value": "${IMAGE_TAG}" },
+    "sqlAdminLogin":            { "value": "${SQL_ADMIN_LOGIN}" },
+    "sqlAdminPassword":         { "value": "${SQL_ADMIN_PASSWORD}" },
+    "databaseName":             { "value": "${DATABASE_NAME}" },
+    "jwtKey":                   { "value": "${BEAUTY_JWT_KEY}" },
+    "allowedOrigins":           { "value": "${ALLOWED_ORIGINS}" },
+    "existingCaeName":          { "value": "${EXISTING_CAE_NAME}" },
+    "existingCaeResourceGroup": { "value": "${EXISTING_CAE_RESOURCE_GROUP}" }
+  }
+}

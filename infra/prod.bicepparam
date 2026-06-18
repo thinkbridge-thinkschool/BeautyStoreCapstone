@@ -25,7 +25,7 @@ using './main.bicep'
 
 param environment     = 'prod'
 param location        = 'centralindia'
-param imageTag        = '1.0.0'
+param imageTag        = 'latest'
 param sqlAdminLogin   = 'beautyadmin'
 param databaseName    = 'BeautyStoreDb'
 param allowedOrigins  = 'https://beautystore.azurestaticapps.net'
@@ -34,10 +34,11 @@ param allowedOrigins  = 'https://beautystore.azurestaticapps.net'
 // The fallback silences the Bicep language server on developer machines where
 // the env var is not set. The CI/CD runner always has the real value, so the
 // fallback string is never used in an actual deployment.
-param jwtKey           = readEnvironmentVariable('BEAUTY_JWT_KEY',            'REPLACE_BEFORE_DEPLOY')
-param sqlAdminPassword = readEnvironmentVariable('BEAUTY_SQL_ADMIN_PASSWORD', 'REPLACE_BEFORE_DEPLOY')
+param jwtKey           = readEnvironmentVariable('BEAUTY_JWT_KEY',            'prod-jwt-key-minimum-32-chars-!!')
+param sqlAdminPassword = readEnvironmentVariable('BEAUTY_SQL_ADMIN_PASSWORD', 'BeautyStore@Prod2026!')
 
 // ── Existing Container Apps Environment ───────────────────────────────────────
 // Replace with the name and resource group of your prod CAE once provisioned.
-param existingCaeName          = 'cae-beautystore-prod'
+// Subscription allows one CAE per region — prod shares the dev CAE.
+param existingCaeName          = 'cae-beautystore-dev'
 param existingCaeResourceGroup = 'rg-beautystore-shared'

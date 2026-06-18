@@ -1,0 +1,47 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/Azure/azure-dev/main/schemas/v1.0/azure.yaml.json
+
+# ── azure.yaml ────────────────────────────────────────────────────────────────
+# Azure Developer CLI project definition for BeautyStoreCapstone.
+#
+# azd reads this file to know:
+#   • which Bicep template to provision  (infra.path + infra.module)
+#   • which parameter file to resolve    (infra/main.parameters.json)
+#   • which services to build & deploy   (none yet — Day 25+)
+#
+# Key azd concepts
+# ─────────────────
+# azd env new <name>     → creates  .azure/<name>/.env
+# azd env set KEY VALUE  → writes   .azure/<name>/.env
+# azd provision          → resolves ${VAR} in main.parameters.json from .env,
+#                          then calls: az deployment group create
+# azd deploy             → builds container image, pushes to ACR, restarts app
+# azd up                 → provision + deploy in one command
+# azd down               → tears down all managed resources
+
+name: beautystorecapstone
+metadata:
+  template: BeautyStoreCapstone@0.0.1
+
+infra:
+  provider: bicep
+  path: infra        # directory that contains main.bicep
+  module: main       # resolves to infra/main.bicep + infra/main.parameters.json
+
+# ── Services (application code) ───────────────────────────────────────────────
+# Uncomment when BeautyStore.Api has a Dockerfile (Day 25+).
+# azd will build the image, push it to ACR, and trigger a rolling restart.
+#
+# services:
+#   api:
+#     project: ./src/BeautyStore.Api
+#     language: dotnet
+#     host: containerapp
+#     docker:
+#       path: ./src/BeautyStore.Api/Dockerfile
+
+# ── Pipeline ──────────────────────────────────────────────────────────────────
+# Uncomment to scaffold GitHub Actions / Azure Pipelines with:
+#   azd pipeline config
+#
+# pipeline:
+#   provider: github

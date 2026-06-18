@@ -25,5 +25,5 @@ param allowedOrigins  = 'http://localhost:4200'
 // per region per subscription. Multiple projects share the same CAE — this is
 // the correct pattern, not a workaround.
 // Replace with your own CAE name and resource group if different.
-param existingCaeName          = 'cae-342m3golxdrt6'
-param existingCaeResourceGroup = 'rg-quotes-amey'
+param existingCaeName          = 'cae-beautystore-dev'
+param existingCaeResourceGroup = 'rg-beautystore-shared'

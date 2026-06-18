@@ -1,0 +1,48 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RootNamespace>BeautyStore.Api</RootNamespace>
+    <AssemblyName>BeautyStore.Api</AssemblyName>
+    <!-- Enables /health, /metrics, and /openapi endpoints in dev automatically -->
+    <InvariantGlobalization>false</InvariantGlobalization>
+    <RuntimeIdentifiers>linux-x64</RuntimeIdentifiers>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- JWT bearer token validation -->
+    <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="10.0.*" />
+
+    <!-- EF Core — SQL Server provider (BeautyStoreDb) -->
+    <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer"        Version="10.0.*" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design"           Version="10.0.*">
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+      <PrivateAssets>all</PrivateAssets>
+    </PackageReference>
+
+    <!-- Azure Service Bus — publish OrderCreated events -->
+    <PackageReference Include="Azure.Messaging.ServiceBus" Version="7.*" />
+
+    <!-- OpenAPI document + Scalar UI (replaces Swashbuckle in .NET 9/10) -->
+    <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.*" />
+    <PackageReference Include="Scalar.AspNetCore"            Version="2.*"    />
+
+    <!-- Health checks — /health endpoint (used by Container Apps probes) -->
+    <PackageReference Include="Microsoft.Extensions.Diagnostics.HealthChecks.EntityFrameworkCore" Version="10.0.*" />
+  </ItemGroup>
+
+  <!--
+    Uncomment each reference as the corresponding bounded-context project gains code.
+    All four are structured to be wired into this host — they are intentionally empty now.
+  -->
+  <!--
+  <ItemGroup>
+    <ProjectReference Include="../BeautyStore.Domain/BeautyStore.Domain.csproj"               />
+    <ProjectReference Include="../BeautyStore.Application/BeautyStore.Application.csproj"     />
+    <ProjectReference Include="../BeautyStore.Infrastructure/BeautyStore.Infrastructure.csproj" />
+  </ItemGroup>
+  -->
+
+</Project>
