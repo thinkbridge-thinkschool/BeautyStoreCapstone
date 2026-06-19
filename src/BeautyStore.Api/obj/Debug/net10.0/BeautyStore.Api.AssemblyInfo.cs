@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("BeautyStore.Api")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+056bc1925447e5ea699055d82a9e0af8f36a9ca4")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+bd00085fa007ea740097b4b8b23b89d847a7c3dd")]
 [assembly: System.Reflection.AssemblyProductAttribute("BeautyStore.Api")]
 [assembly: System.Reflection.AssemblyTitleAttribute("BeautyStore.Api")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

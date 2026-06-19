@@ -1,0 +1,39 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentParameters.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "environment": {
+      "value": "dev"
+    },
+    "location": {
+      "value": "centralindia"
+    },
+    "imageTag": {
+      "value": "latest"
+    },
+    "sqlAdminLogin": {
+      "value": "beautyadmin"
+    },
+    "sqlAdminPassword": {
+      "value": "Dev@Passw0rd!"
+    },
+    "databaseName": {
+      "value": "BeautyStoreDb"
+    },
+    "tenantId": {
+      "value": "abcb3509-e099-4c7c-88c5-1a2f27ee93b5"
+    },
+    "clientId": {
+      "value": "37c13986-f680-4593-95ec-49d0c1eb62de"
+    },
+    "allowedOrigins": {
+      "value": "http://localhost:4200"
+    },
+    "existingCaeName": {
+      "value": "cae-beautystore-dev"
+    },
+    "existingCaeResourceGroup": {
+      "value": "rg-beautystore-shared"
+    }
+  }
+}
