@@ -116,6 +116,22 @@ builder.Services.AddOpenApi(options =>
 
 var app = builder.Build();
 
+app.Use(async (context, next) =>
+{
+    context.Response.Headers["X-Content-Type-Options"] = "nosniff";
+
+    context.Response.Headers["Strict-Transport-Security"] =
+        "max-age=31536000; includeSubDomains";
+
+    context.Response.Headers["Cross-Origin-Resource-Policy"] =
+        "same-origin";
+
+    context.Response.Headers["Cache-Control"] =
+        "no-store, no-cache, must-revalidate";
+
+    await next();
+});
+
 app.UseHttpsRedirection();
 app.UseCors();
 app.UseAuthentication();
