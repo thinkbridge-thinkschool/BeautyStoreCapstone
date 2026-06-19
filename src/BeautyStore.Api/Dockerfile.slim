@@ -1,0 +1,32 @@
+# ── BeautyStore.Api — runtime-only Dockerfile ────────────────────────────────
+# Build context: src/BeautyStore.Api/publish  (pre-published output)
+#
+# Usage:
+#   dotnet publish src/BeautyStore.Api/BeautyStore.Api.csproj \
+#     --configuration Release --runtime linux-x64 --self-contained false \
+#     --output src/BeautyStore.Api/publish
+#
+#   docker build -f src/BeautyStore.Api/Dockerfile.slim \
+#     -t <registry>/beautystoreapi:latest \
+#     src/BeautyStore.Api/publish
+#
+# Skips the SDK stage entirely — the build context is ~10 MB of compiled output,
+# not the full source tree. Used when Docker Desktop crashes on large COPY layers.
+
+FROM mcr.microsoft.com/dotnet/aspnet:10.0
+
+WORKDIR /app
+
+RUN groupadd --system --gid 1001 appgroup \
+ && useradd  --system --uid 1001 --gid appgroup --no-create-home appuser
+
+COPY --chown=appuser:appgroup . .
+
+USER appuser
+
+EXPOSE 8080
+ENV ASPNETCORE_URLS=http://+:8080 \
+    DOTNET_RUNNING_IN_CONTAINER=true \
+    ASPNETCORE_ENVIRONMENT=Production
+
+ENTRYPOINT ["dotnet", "BeautyStore.Api.dll"]

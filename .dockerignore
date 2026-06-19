@@ -1,0 +1,35 @@
+# ── .dockerignore ──────────────────────────────────────────────────────────────
+# Build context: repo root (docker build -f src/BeautyStore.Api/Dockerfile .)
+# Only src/ is needed. Everything else is excluded to keep the context small.
+
+# Angular frontend — node_modules alone is ~250 MB
+beautystore-web/
+
+# Infrastructure as code — not compiled into the image
+infra/
+
+# Azure Developer CLI state — contains dev secrets
+.azure/
+
+# Git history
+.git/
+.gitignore
+
+# Build outputs (local dev artefacts)
+**/bin/
+**/obj/
+
+# Test projects
+tests/
+
+# IDE / tooling
+.vs/
+.vscode/
+**/*.user
+**/.DS_Store
+
+# Python virtual env (used for Azure CLI in this repo)
+.venv/
+
+# Documentation
+**/*.md

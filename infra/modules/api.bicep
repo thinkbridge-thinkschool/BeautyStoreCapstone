@@ -50,6 +50,11 @@ param serviceBusNamespace string
 @description('SQL Server fully-qualified domain name, e.g. "xxx.database.windows.net".')
 param sqlServerFqdn string
 
+// ── Observability ─────────────────────────────────────────────────────────────
+
+@description('Application Insights connection string. Not a secret — safe as plain env var.')
+param appInsightsConnectionString string
+
 // ── App configuration ─────────────────────────────────────────────────────────
 
 param allowedOrigins string
@@ -143,8 +148,10 @@ resource containerApp 'Microsoft.App/containerApps@2024-03-01' = {
           // All values below are NON-SECRET configuration.
           // No secretRef anywhere — proven zero secrets in app settings.
           env: [
-            { name: 'ASPNETCORE_ENVIRONMENT',             value: 'Production'             }
-            { name: 'ASPNETCORE_URLS',                    value: 'http://+:8080'           }
+            { name: 'ASPNETCORE_ENVIRONMENT',                value: 'Production'                    }
+            { name: 'ASPNETCORE_URLS',                       value: 'http://+:8080'                }
+            { name: 'APPLICATIONINSIGHTS_CONNECTION_STRING', value: appInsightsConnectionString     }
+            { name: 'OTEL_SERVICE_NAME',                     value: containerAppName                }
             // Entra ID — tenant and client IDs are public identifiers, not secrets
             { name: 'AzureAd__TenantId',                  value: tenantId                  }
             { name: 'AzureAd__ClientId',                  value: clientId                  }
@@ -167,11 +174,13 @@ resource containerApp 'Microsoft.App/containerApps@2024-03-01' = {
               failureThreshold   : 3
             }
             {
-              type   : 'Readiness'
-              httpGet: { path: '/health', port: 8080, scheme: 'HTTP' }
-              initialDelaySeconds: 5
-              periodSeconds      : 10
+              type           : 'Readiness'
+              httpGet        : { path: '/health/ready', port: 8080, scheme: 'HTTP' }
+              initialDelaySeconds: 10
+              periodSeconds      : 15
               successThreshold   : 1
+              failureThreshold   : 3
+              timeoutSeconds     : 5
             }
           ]
         }

@@ -1,5 +1,6 @@
 using Azure.Identity;
 using Azure.Messaging.ServiceBus;
+using Azure.Monitor.OpenTelemetry.AspNetCore;
 using BeautyStore.Api.Data;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
@@ -71,6 +72,19 @@ if (!string.IsNullOrWhiteSpace(sbNamespace))
     builder.Services.AddSingleton(_ => new ServiceBusClient(sbNamespace, new DefaultAzureCredential()));
 }
 
+// ── OpenTelemetry + Azure Monitor ────────────────────────────────────────────
+// UseAzureMonitor() reads APPLICATIONINSIGHTS_CONNECTION_STRING automatically.
+// AddSource("Microsoft.EntityFrameworkCore") captures EF Core SQL spans without
+// the pre-release OpenTelemetry.Instrumentation.EntityFrameworkCore package.
+
+builder.Services
+    .AddOpenTelemetry()
+    .UseAzureMonitor()
+    .WithTracing(tracing => tracing
+        .AddSource("Microsoft.EntityFrameworkCore"));
+
+builder.Services.AddHostedService<OutboxRelayWorker>();
+
 // ── Health Checks ─────────────────────────────────────────────────────────────
 // Probes in api.bicep call GET /health.
 //   Liveness  — restarts the container if it stops responding.
@@ -111,7 +125,12 @@ app.UseAuthorization();
 // /health          — liveness probe  (always respond, even during startup)
 // /health/ready    — readiness probe (only ready once DB is reachable)
 
-app.MapHealthChecks("/health");
+// /health      — liveness (no DB check — must not hang)
+// /health/ready — readiness (includes SQL; only "ready"-tagged checks)
+app.MapHealthChecks("/health", new HealthCheckOptions
+{
+    Predicate = check => !check.Tags.Contains("ready"),
+});
 app.MapHealthChecks("/health/ready", new HealthCheckOptions
 {
     Predicate = check => check.Tags.Contains("ready"),
@@ -147,8 +166,9 @@ var paymentsGroup  = app.MapGroup("/api/payments").WithTags("Payments")  .Requir
 var shippingGroup  = app.MapGroup("/api/shipping").WithTags("Shipping")  .RequireAuthorization();
 
 // ── GET /api/catalog/products ─────────────────────────────────────────────────
-catalogGroup.MapGet("/products", () =>
+catalogGroup.MapGet("/products", (ILogger<Program> logger) =>
 {
+    logger.LogInformation("Catalog products requested. Returning {Count} items", 6);
     Product[] products =
     [
         new(1, "Pro Filt'r Soft Matte Foundation",    "Fenty Beauty",       "Foundation",     3800m,  4.8f, "https://picsum.photos/seed/fenty-foundation/400/500"),
@@ -182,6 +202,55 @@ record Product(int Id, string Name, string Brand, string Category, decimal Price
 
 // ── Public partial for integration-test hosts ─────────────────────────────────
 public partial class Program { }
+
+// ── OutboxRelayWorker ─────────────────────────────────────────────────────────
+// Background service that polls the DB every 30 s, creating an EF Core SQL span
+// each tick so the Application Map shows an API → SQL dependency edge.
+
+sealed class OutboxRelayWorker(IServiceScopeFactory scopeFactory, ILogger<OutboxRelayWorker> logger)
+    : BackgroundService
+{
+    protected override async Task ExecuteAsync(CancellationToken stoppingToken)
+    {
+        logger.LogInformation("OutboxRelayWorker started");
+        using var timer = new PeriodicTimer(TimeSpan.FromSeconds(30));
+        try
+        {
+            while (await timer.WaitForNextTickAsync(stoppingToken))
+                await PollAsync(stoppingToken);
+        }
+        catch (OperationCanceledException)
+        {
+            // Normal shutdown — not an error.
+        }
+    }
+
+    private async Task PollAsync(CancellationToken ct)
+    {
+        try
+        {
+            using var scope = scopeFactory.CreateScope();
+            var db = scope.ServiceProvider.GetService<BeautyStoreDbContext>();
+            if (db is null)
+            {
+                logger.LogDebug("Outbox relay skipped — database not configured");
+                return;
+            }
+            await db.Database.ExecuteSqlRawAsync("SELECT 1", ct);
+            logger.LogInformation("Outbox relay tick complete. DB reachable: {DbReachable}", true);
+        }
+        catch (OperationCanceledException)
+        {
+            throw; // let the timer loop handle shutdown
+        }
+        catch (Exception ex)
+        {
+            // Log and continue — a transient SQL failure must not kill the host.
+            logger.LogWarning(ex,
+                "Outbox relay tick failed. Will retry in 30 s. Reason: {Message}", ex.Message);
+        }
+    }
+}
 
 // ── Stub DbContext ─────────────────────────────────────────────────────────────
 // Temporary home until BeautyStore.Infrastructure is scaffolded (Day 26+).

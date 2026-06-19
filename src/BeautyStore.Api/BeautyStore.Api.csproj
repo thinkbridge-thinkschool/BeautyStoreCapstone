@@ -28,6 +28,9 @@
     <!-- Azure Service Bus — publish OrderCreated events -->
     <PackageReference Include="Azure.Messaging.ServiceBus" Version="7.*" />
 
+    <!-- OpenTelemetry + Azure Monitor — traces, metrics, structured logs → App Insights -->
+    <PackageReference Include="Azure.Monitor.OpenTelemetry.AspNetCore" Version="1.*" />
+
     <!-- OpenAPI document + Scalar UI (replaces Swashbuckle in .NET 9/10) -->
     <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.*" />
     <PackageReference Include="Scalar.AspNetCore"            Version="2.*"    />

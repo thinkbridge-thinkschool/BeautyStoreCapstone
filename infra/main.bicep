@@ -85,6 +85,18 @@ resource caEnv 'Microsoft.App/managedEnvironments@2024-03-01' existing = {
   scope: resourceGroup(existingCaeResourceGroup)
 }
 
+// ── Module: Observability ─────────────────────────────────────────────────────
+module observability './modules/observability.bicep' = {
+  name  : 'observability-deploy'
+  params: {
+    prefix      : prefix
+    suffix      : suffix
+    location    : location
+    tags        : tags
+    retentionDays: environment == 'prod' ? 90 : 30
+  }
+}
+
 // ── Module: Service Bus ───────────────────────────────────────────────────────
 module serviceBus './modules/servicebus.bicep' = {
   name  : 'servicebus-deploy'
@@ -117,18 +129,19 @@ module sql './modules/sql.bicep' = {
 module api './modules/api.bicep' = {
   name  : 'api-deploy'
   params: {
-    acrName             : acrName
-    containerAppName    : containerAppName
-    location            : location
-    tags                : tags
-    environmentId       : caEnv.id
-    imageTag            : imageTag
-    tenantId            : tenantId
-    clientId            : clientId
-    serviceBusNamespace : serviceBus.outputs.namespaceName
-    sqlServerFqdn       : sql.outputs.serverFqdn
-    allowedOrigins      : allowedOrigins
-    databaseName        : databaseName
+    acrName                    : acrName
+    containerAppName           : containerAppName
+    location                   : location
+    tags                       : tags
+    environmentId              : caEnv.id
+    imageTag                   : imageTag
+    tenantId                   : tenantId
+    clientId                   : clientId
+    serviceBusNamespace        : serviceBus.outputs.namespaceName
+    sqlServerFqdn              : sql.outputs.serverFqdn
+    appInsightsConnectionString: observability.outputs.connectionString
+    allowedOrigins             : allowedOrigins
+    databaseName               : databaseName
     acrSku              : environment == 'prod' ? 'Standard' : 'Basic'
     minReplicas         : environment == 'prod' ? 2          : 0
     maxReplicas         : environment == 'prod' ? 10         : 3
