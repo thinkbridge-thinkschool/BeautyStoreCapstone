@@ -4,8 +4,10 @@ using Azure.Monitor.OpenTelemetry.AspNetCore;
 using BeautyStore.Api.Data;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using Scalar.AspNetCore;
+using System.Threading.RateLimiting;
 
 // ── Builder ───────────────────────────────────────────────────────────────────
 
@@ -85,6 +87,27 @@ builder.Services
 
 builder.Services.AddHostedService<OutboxRelayWorker>();
 
+// ── Request hardening ─────────────────────────────────────────────────────────
+// 1 MB body cap prevents request-body bombs on any endpoint.
+builder.WebHost.ConfigureKestrel(o => o.Limits.MaxRequestBodySize = 1_048_576);
+
+// Fixed-window: 100 req / IP / minute. Container Apps terminates TLS and
+// forwards the real client IP in X-Forwarded-For, but Kestrel sees the
+// YARP proxy IP for the partition key — good enough for blast protection.
+builder.Services.AddRateLimiter(options =>
+{
+    options.GlobalLimiter = PartitionedRateLimiter.Create<HttpContext, string>(ctx =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            partitionKey: ctx.Connection.RemoteIpAddress?.ToString() ?? "anonymous",
+            factory: _ => new FixedWindowRateLimiterOptions
+            {
+                Window      = TimeSpan.FromMinutes(1),
+                PermitLimit = 100,
+                QueueLimit  = 0,
+            }));
+    options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+});
+
 // ── Health Checks ─────────────────────────────────────────────────────────────
 // Probes in api.bicep call GET /health.
 //   Liveness  — restarts the container if it stops responding.
@@ -134,6 +157,7 @@ app.Use(async (context, next) =>
 
 app.UseHttpsRedirection();
 app.UseCors();
+app.UseRateLimiter();
 app.UseAuthentication();
 app.UseAuthorization();
 
