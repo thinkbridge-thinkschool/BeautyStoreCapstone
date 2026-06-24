@@ -1,7 +1,11 @@
-import { Component } from '@angular/core';
+import { Component, inject } from '@angular/core';
+import { RouterLink } from '@angular/router';
+import { AuthService } from '../../../../auth/services/auth.service';
 
 @Component({
   selector: 'app-hero',
+  standalone: true,
+  imports: [RouterLink],
   template: `
     <section class="hero">
       <nav class="nav">
@@ -9,7 +13,13 @@ import { Component } from '@angular/core';
         <div class="nav-links">
           <a href="#">Shop</a>
           <a href="#">About</a>
-          <button class="btn-signin">Sign In</button>
+          @if (auth.isLoggedIn()) {
+            <a routerLink="/orders" class="nav-orders">My Orders</a>
+            <a routerLink="/profile" class="btn-signin">{{ auth.currentUser()?.fullName }}</a>
+            <button class="btn-signin" (click)="auth.logout()">Sign Out</button>
+          } @else {
+            <button class="btn-signin" routerLink="/login">Sign In</button>
+          }
         </div>
       </nav>
       <div class="hero-content">
@@ -76,8 +86,19 @@ import { Component } from '@angular/core';
       font-weight: 500;
       opacity: 0.9;
       transition: opacity 0.2s;
+      text-decoration: none;
+      color: inherit;
     }
     .nav-links a:hover { opacity: 1; }
+    .nav-orders {
+      font-size: 0.95rem;
+      font-weight: 600;
+      color: white;
+      text-decoration: none;
+      opacity: 0.9;
+      transition: opacity 0.2s;
+    }
+    .nav-orders:hover { opacity: 1; }
     .btn-signin {
       background: rgba(255,255,255,0.15);
       color: white;
@@ -89,6 +110,7 @@ import { Component } from '@angular/core';
       backdrop-filter: blur(10px);
       transition: background 0.2s;
       cursor: pointer;
+      text-decoration: none;
     }
     .btn-signin:hover { background: rgba(255,255,255,0.25); }
     .hero-content {
@@ -200,4 +222,6 @@ import { Component } from '@angular/core';
     .circle-3 { width: 200px; height: 200px; right: 400px; top: 50%; background: rgba(255,255,255,0.05); }
   `]
 })
-export class HeroComponent {}
+export class HeroComponent {
+  auth = inject(AuthService);
+}

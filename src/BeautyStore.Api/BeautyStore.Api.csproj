@@ -15,6 +15,9 @@
     <!-- JWT bearer token validation -->
     <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="10.0.*" />
 
+    <!-- ASP.NET Core Identity + EF Core store -->
+    <PackageReference Include="Microsoft.AspNetCore.Identity.EntityFrameworkCore" Version="10.0.*" />
+
     <!-- EF Core — SQL Server provider (BeautyStoreDb) -->
     <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer"        Version="10.0.*" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Design"           Version="10.0.*">

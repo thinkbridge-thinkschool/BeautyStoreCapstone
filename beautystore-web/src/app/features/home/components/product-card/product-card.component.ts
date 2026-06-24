@@ -1,10 +1,13 @@
-import { Component, computed, input } from '@angular/core';
+import { Component, computed, inject, input, signal } from '@angular/core';
 import { DecimalPipe } from '@angular/common';
+import { Router, RouterLink } from '@angular/router';
 import { Product } from '../../../../core/models/product.model';
+import { AuthService } from '../../../../auth/services/auth.service';
+import { OrderService } from '../../../../core/services/order.service';
 
 @Component({
   selector: 'app-product-card',
-  imports: [DecimalPipe],
+  imports: [DecimalPipe, RouterLink],
   template: `
     <div class="card">
       <div class="card-image-wrap">
@@ -22,8 +25,20 @@ import { Product } from '../../../../core/models/product.model';
         </div>
         <div class="card-footer">
           <span class="price">₹{{ product().price | number:'1.0-0' }}</span>
-          <button class="btn-add">Add to Bag</button>
+
+          @if (ordered()) {
+            <a routerLink="/orders" class="btn-ordered">View Order ✓</a>
+          } @else {
+            <button class="btn-add"
+                    [disabled]="loading()"
+                    (click)="buy()">
+              {{ loading() ? 'Placing…' : 'Add to Bag' }}
+            </button>
+          }
         </div>
+        @if (errorMsg()) {
+          <p class="err-msg">{{ errorMsg() }}</p>
+        }
       </div>
     </div>
   `,
@@ -116,11 +131,51 @@ import { Product } from '../../../../core/models/product.model';
       cursor: pointer;
       transition: opacity 0.2s, transform 0.2s;
     }
-    .btn-add:hover { opacity: 0.9; transform: scale(1.03); }
+    .btn-add:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
+    .btn-add:not(:disabled):hover { opacity: 0.9; transform: scale(1.03); }
+    .btn-ordered {
+      background: #f0fdf4;
+      color: #16a34a;
+      border: 1px solid #bbf7d0;
+      padding: 10px 16px;
+      border-radius: 100px;
+      font-size: 0.8rem;
+      font-weight: 600;
+      text-decoration: none;
+      white-space: nowrap;
+    }
+    .btn-ordered:hover { background: #dcfce7; }
+    .err-msg {
+      color: #dc2626;
+      font-size: 0.75rem;
+      margin-top: 8px;
+      text-align: right;
+    }
   `]
 })
 export class ProductCardComponent {
-  product = input.required<Product>();
-  stars = computed(() => Array(5).fill(0));
+  product    = input.required<Product>();
+  stars      = computed(() => Array(5).fill(0));
   filledStars = computed(() => Math.round(this.product().rating));
+
+  loading  = signal(false);
+  ordered  = signal(false);
+  errorMsg = signal('');
+
+  #auth   = inject(AuthService);
+  #orders = inject(OrderService);
+  #router = inject(Router);
+
+  buy() {
+    if (!this.#auth.isLoggedIn()) {
+      this.#router.navigate(['/login']);
+      return;
+    }
+    this.loading.set(true);
+    this.errorMsg.set('');
+    this.#orders.placeOrder(this.product().id, 1).subscribe({
+      next: () => { this.ordered.set(true); this.loading.set(false); },
+      error: () => { this.errorMsg.set('Could not place order. Try again.'); this.loading.set(false); },
+    });
+  }
 }

@@ -1,34 +1,49 @@
 using Azure.Identity;
 using Azure.Messaging.ServiceBus;
 using Azure.Monitor.OpenTelemetry.AspNetCore;
+using BeautyStore.Api.Auth;
 using BeautyStore.Api.Data;
+using BeautyStore.Api.Orders;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.IdentityModel.Tokens;
 using Scalar.AspNetCore;
+using System.Text;
 using System.Threading.RateLimiting;
 
 // ── Builder ───────────────────────────────────────────────────────────────────
 
 var builder = WebApplication.CreateBuilder(args);
 
-// ── Entra ID Authentication ───────────────────────────────────────────────────
-// TenantId and ClientId are NOT secrets — safe in appsettings / env vars.
-// Entra ID validates tokens via its public JWKS endpoint; no symmetric key needed.
+// ── JWT key (required — set Jwt__Key env var in Container App) ────────────────
+var jwtKey = builder.Configuration["Jwt:Key"]
+    ?? throw new InvalidOperationException("Jwt:Key is required. Set it in appsettings.Development.json locally or as Jwt__Key env var in the Container App.");
 
-var tenantId = builder.Configuration["AzureAd:TenantId"] ?? throw new InvalidOperationException("AzureAd:TenantId is required.");
-var clientId = builder.Configuration["AzureAd:ClientId"] ?? throw new InvalidOperationException("AzureAd:ClientId is required.");
-
+// ── JWT Bearer authentication ─────────────────────────────────────────────────
 builder.Services
     .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
     {
-        options.Authority = $"https://login.microsoftonline.com/{tenantId}/v2.0";
-        options.Audience  = clientId;
+        // Keep JWT claim names as-is (sub, email, …) — no silent .NET type-map.
+        options.MapInboundClaims = false;
+        options.TokenValidationParameters = new TokenValidationParameters
+        {
+            ValidateIssuerSigningKey = true,
+            IssuerSigningKey         = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey)),
+            ValidateIssuer           = !string.IsNullOrWhiteSpace(builder.Configuration["Jwt:Issuer"]),
+            ValidIssuer              = builder.Configuration["Jwt:Issuer"],
+            ValidateAudience         = !string.IsNullOrWhiteSpace(builder.Configuration["Jwt:Audience"]),
+            ValidAudience            = builder.Configuration["Jwt:Audience"],
+            ValidateLifetime         = true,
+            ClockSkew                = TimeSpan.Zero,
+        };
     });
 
 builder.Services.AddAuthorization();
+builder.Services.AddSingleton<JwtService>();
 
 // ── CORS ──────────────────────────────────────────────────────────────────────
 // AllowedOrigins is a comma-separated list set in Container App env vars.
@@ -61,6 +76,21 @@ if (dbAvailable)
             sql.CommandTimeout(30);
             sql.EnableRetryOnFailure(maxRetryCount: 5, maxRetryDelay: TimeSpan.FromSeconds(10), errorNumbersToAdd: null);
         }));
+
+    // ── ASP.NET Core Identity ─────────────────────────────────────────────────
+    // AddIdentityCore omits cookie auth — we issue our own JWTs, so no cookie scheme.
+    builder.Services
+        .AddIdentityCore<ApplicationUser>(options =>
+        {
+            options.Password.RequireDigit           = true;
+            options.Password.RequiredLength         = 8;
+            options.Password.RequireNonAlphanumeric = false;
+            options.User.RequireUniqueEmail         = true;
+        })
+        .AddRoles<ApplicationRole>()
+        .AddEntityFrameworkStores<BeautyStoreDbContext>()
+        .AddDefaultTokenProviders()
+        .AddSignInManager();
 }
 
 // ── Azure Service Bus (Managed Identity) ─────────────────────────────────────
@@ -76,14 +106,17 @@ if (!string.IsNullOrWhiteSpace(sbNamespace))
 
 // ── OpenTelemetry + Azure Monitor ────────────────────────────────────────────
 // UseAzureMonitor() reads APPLICATIONINSIGHTS_CONNECTION_STRING automatically.
-// AddSource("Microsoft.EntityFrameworkCore") captures EF Core SQL spans without
-// the pre-release OpenTelemetry.Instrumentation.EntityFrameworkCore package.
+// Skipped locally when the connection string is absent — throws otherwise.
 
-builder.Services
-    .AddOpenTelemetry()
-    .UseAzureMonitor()
-    .WithTracing(tracing => tracing
-        .AddSource("Microsoft.EntityFrameworkCore"));
+var aiConnectionString = builder.Configuration["APPLICATIONINSIGHTS_CONNECTION_STRING"];
+if (!string.IsNullOrWhiteSpace(aiConnectionString))
+{
+    builder.Services
+        .AddOpenTelemetry()
+        .UseAzureMonitor()
+        .WithTracing(tracing => tracing
+            .AddSource("Microsoft.EntityFrameworkCore"));
+}
 
 builder.Services.AddHostedService<OutboxRelayWorker>();
 
@@ -114,7 +147,7 @@ builder.Services.AddRateLimiter(options =>
 //   Readiness — holds traffic until startup + DB connectivity are confirmed.
 
 var healthChecks = builder.Services.AddHealthChecks();
-if (dbAvailable)
+if (dbAvailable) 
 {
     healthChecks.AddDbContextCheck<BeautyStoreDbContext>("sql", tags: ["ready"]);
 }
@@ -156,6 +189,14 @@ app.Use(async (context, next) =>
 });
 
 app.UseHttpsRedirection();
+app.UseStaticFiles(new StaticFileOptions
+{
+    OnPrepareResponse = ctx =>
+    {
+        ctx.Context.Response.Headers["Cross-Origin-Resource-Policy"] = "cross-origin";
+        ctx.Context.Response.Headers["Cache-Control"]                = "public, max-age=86400";
+    }
+});
 app.UseCors();
 app.UseRateLimiter();
 app.UseAuthentication();
@@ -206,17 +247,18 @@ var paymentsGroup  = app.MapGroup("/api/payments").WithTags("Payments")  .Requir
 var shippingGroup  = app.MapGroup("/api/shipping").WithTags("Shipping")  .RequireAuthorization();
 
 // ── GET /api/catalog/products ─────────────────────────────────────────────────
-catalogGroup.MapGet("/products", (ILogger<Program> logger) =>
+catalogGroup.MapGet("/products", (HttpRequest request, ILogger<Program> logger) =>
 {
     logger.LogInformation("Catalog products requested. Returning {Count} items", 6);
+    var baseUrl = $"{request.Scheme}://{request.Host}";
     Product[] products =
     [
-        new(1, "Pro Filt'r Soft Matte Foundation",    "Fenty Beauty",       "Foundation",     3800m,  4.8f, "https://picsum.photos/seed/fenty-foundation/400/500"),
-        new(2, "Pillow Talk Matte Revolution Lipstick","Charlotte Tilbury",  "Lipstick",       2850m,  4.9f, "https://picsum.photos/seed/ct-pillow-talk/400/500"),
-        new(3, "Orgasm Blush Powder",                 "NARS Cosmetics",     "Blush",          2200m,  4.7f, "https://picsum.photos/seed/nars-orgasm/400/500"),
-        new(4, "Protini Polypeptide Moisturiser",     "Drunk Elephant",     "Moisturiser",    5600m,  4.6f, "https://picsum.photos/seed/drunk-elephant/400/500"),
-        new(5, "Facial Treatment Essence",            "SK-II",              "Toner / Essence",12500m, 4.8f, "https://picsum.photos/seed/skii-essence/400/500"),
-        new(6, "Rose Gold Eyeshadow Palette",         "Huda Beauty",        "Eyeshadow",      4800m,  4.7f, "https://picsum.photos/seed/huda-rose-gold/400/500"),
+        new(1, "Pro Filt'r Soft Matte Foundation",    "Fenty Beauty",       "Foundation",     3800m,  4.8f, $"{baseUrl}/images/product-1.jpg"),
+        new(2, "Pillow Talk Matte Revolution Lipstick","Charlotte Tilbury",  "Lipstick",       2850m,  4.9f, $"{baseUrl}/images/product-2.jpg"),
+        new(3, "Orgasm Blush Powder",                 "NARS Cosmetics",     "Blush",          2200m,  4.7f, $"{baseUrl}/images/product-3.jpg"),
+        new(4, "Protini Polypeptide Moisturiser",     "Drunk Elephant",     "Moisturiser",    5600m,  4.6f, $"{baseUrl}/images/product-4.jpg"),
+        new(5, "Facial Treatment Essence",            "SK-II",              "Toner / Essence",12500m, 4.8f, $"{baseUrl}/images/product-5.jpg"),
+        new(6, "Rose Gold Eyeshadow Palette",         "Huda Beauty",        "Eyeshadow",      4800m,  4.7f, $"{baseUrl}/images/product-6.jpg"),
     ];
     return Results.Ok(products);
 })
@@ -233,6 +275,22 @@ if (app.Environment.IsDevelopment() && dbAvailable)
     var db = scope.ServiceProvider.GetRequiredService<BeautyStoreDbContext>();
     await db.Database.MigrateAsync();
 }
+
+// ── Seed Identity roles ───────────────────────────────────────────────────────
+// Runs on every startup; RoleExistsAsync makes it idempotent.
+if (dbAvailable)
+{
+    await using var seedScope   = app.Services.CreateAsyncScope();
+    var roleManager = seedScope.ServiceProvider.GetRequiredService<RoleManager<ApplicationRole>>();
+    foreach (var role in new[] { "Admin", "Customer" })
+    {
+        if (!await roleManager.RoleExistsAsync(role))
+            await roleManager.CreateAsync(new ApplicationRole(role));
+    }
+}
+
+app.MapAuthEndpoints();
+ordersGroup.MapOrderEndpoints();
 
 app.Run();
 
@@ -292,25 +350,3 @@ sealed class OutboxRelayWorker(IServiceScopeFactory scopeFactory, ILogger<Outbox
     }
 }
 
-// ── Stub DbContext ─────────────────────────────────────────────────────────────
-// Temporary home until BeautyStore.Infrastructure is scaffolded (Day 26+).
-// Move to: src/BeautyStore.Infrastructure/Persistence/BeautyStoreDbContext.cs
-// and uncomment the ProjectReference in BeautyStore.Api.csproj.
-
-namespace BeautyStore.Api.Data
-{
-    using Microsoft.EntityFrameworkCore;
-
-    public sealed class BeautyStoreDbContext(DbContextOptions<BeautyStoreDbContext> options)
-        : DbContext(options)
-    {
-        // Entity DbSets will be added here as Domain entities are defined.
-        // Each bounded context uses a schema prefix:
-        //   Catalog.*, Orders.*, Inventory.*, Payments.*, Shipping.*
-        protected override void OnModelCreating(ModelBuilder modelBuilder)
-        {
-            modelBuilder.HasDefaultSchema("dbo");
-            base.OnModelCreating(modelBuilder);
-        }
-    }
-}

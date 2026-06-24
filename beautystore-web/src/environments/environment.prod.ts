@@ -1,4 +1,4 @@
 export const environment = {
   production: true,
-  apiUrl: 'https://beautystore-prod-api.PLACEHOLDER.centralindia.azurecontainerapps.io'
+  apiUrl: 'https://beautystore-dev-api.agreeableground-0afc1da7.centralindia.azurecontainerapps.io'
 };
