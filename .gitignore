@@ -1,0 +1,39 @@
+# .NET build outputs
+bin/
+obj/
+publish/
+*.user
+*.suo
+.vs/
+
+# Build log
+build.log
+
+# Publish output
+**/publish/
+
+# NuGet
+*.nupkg
+*.snupkg
+packages/
+
+# Rider / JetBrains
+.idea/
+*.DotSettings.user
+
+# Environment / secrets
+.env
+appsettings.local.json
+appsettings.*.local.json
+
+# Security scan outputs (keep yaml config, ignore report)
+zap-report.html
+
+# Node / Angular (frontend has its own .gitignore under beautystore-web/)
+node_modules/
+dist/
+.angular/
+
+# OS
+.DS_Store
+Thumbs.db
