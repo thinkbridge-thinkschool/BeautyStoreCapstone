@@ -3,6 +3,7 @@ using Azure.Messaging.ServiceBus;
 using Azure.Monitor.OpenTelemetry.AspNetCore;
 using BeautyStore.Api.Auth;
 using BeautyStore.Api.Data;
+using BeautyStore.Api.Middleware;
 using BeautyStore.Api.Orders;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
@@ -168,9 +169,46 @@ builder.Services.AddOpenApi(options =>
     });
 });
 
+// ── ProblemDetails ────────────────────────────────────────────────────────────
+// Registers IProblemDetailsService used by Results.Problem() and the exception
+// middleware. Required for consistent RFC 7807 error shapes across the API.
+builder.Services.AddProblemDetails();
+
 // ── Application ───────────────────────────────────────────────────────────────
 
 var app = builder.Build();
+
+// ── Exception handling — must be FIRST so it wraps every downstream middleware ─
+app.UseMiddleware<ExceptionHandlingMiddleware>();
+
+// ── Status-code pages — converts empty 401/403/404/405/429 bodies to JSON ────
+// Fires only when the response body is empty AND ContentType is not already set.
+// This covers: JWT 401 challenges, auth 403, routing 404, rate-limit 429.
+app.UseStatusCodePages(async ctx =>
+{
+    var res = ctx.HttpContext.Response;
+    if (res.ContentType?.Contains("application/problem") == true) return;
+
+    var traceId = ctx.HttpContext.TraceIdentifier;
+    var (title, type) = res.StatusCode switch
+    {
+        401 => ("Unauthorized — valid credentials required", "https://httpstatuses.io/401"),
+        403 => ("Forbidden — you do not have permission",    "https://httpstatuses.io/403"),
+        404 => ("The requested resource was not found",      "https://httpstatuses.io/404"),
+        405 => ("HTTP method not allowed",                   "https://httpstatuses.io/405"),
+        429 => ("Too many requests — rate limit exceeded",   "https://httpstatuses.io/429"),
+        _   => ("An error occurred",                         $"https://httpstatuses.io/{res.StatusCode}"),
+    };
+
+    res.ContentType = "application/problem+json";
+    await res.WriteAsJsonAsync(new
+    {
+        type,
+        title,
+        status  = res.StatusCode,
+        traceId,
+    });
+});
 
 app.Use(async (context, next) =>
 {
@@ -291,6 +329,12 @@ if (dbAvailable)
 
 app.MapAuthEndpoints();
 ordersGroup.MapOrderEndpoints();
+
+// ── Fallback — unknown routes return JSON 404, not HTML ───────────────────────
+app.MapFallback(() => Results.Problem(
+    title:      "The requested resource was not found",
+    statusCode: StatusCodes.Status404NotFound,
+    type:       "https://httpstatuses.io/404"));
 
 app.Run();
 

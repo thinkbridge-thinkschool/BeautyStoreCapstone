@@ -3,6 +3,7 @@ using System.Security.Claims;
 using System.Text.Json;
 using Azure.Messaging.ServiceBus;
 using BeautyStore.Api.Data;
+using BeautyStore.Api.Exceptions;
 using BeautyStore.Api.Orders.Dtos;
 using BeautyStore.Api.Orders.Events;
 using Microsoft.AspNetCore.Mvc;
@@ -30,16 +31,19 @@ public static class OrderEndpoints
         group.MapPost("/", async (
             CreateOrderRequest                  req,
             ClaimsPrincipal                     principal,
+            HttpContext                         httpContext,
             [FromServices] BeautyStoreDbContext db,
             [FromServices] IConfiguration       config,
             [FromServices] ILogger<Program>     logger,
             [FromServices] ServiceBusClient?    sbClient) =>
         {
             if (req.Quantity < 1)
-                return Results.BadRequest(new { error = "Quantity must be at least 1." });
+                throw new ValidationException(
+                    "Quantity must be at least 1.",
+                    new Dictionary<string, string[]> { ["quantity"] = ["Must be greater than 0."] });
 
             if (!Catalog.TryGetValue(req.ProductId, out var product))
-                return Results.BadRequest(new { error = "Product not found." });
+                throw new NotFoundException($"Product {req.ProductId} not found in the catalog.");
 
             var userId = principal.FindFirstValue(JwtRegisteredClaimNames.Sub);
             if (userId is null) return Results.Unauthorized();
@@ -76,7 +80,11 @@ public static class OrderEndpoints
                 }
                 catch (Exception ex)
                 {
-                    logger.LogWarning(ex, "OrderCreated publish failed for order {OrderId}", order.Id);
+                    logger.LogWarning(
+                        ex,
+                        "Service Bus publish failed for OrderId {OrderId} — order saved, event lost. " +
+                        "ExceptionType: {ExceptionType} | TraceId: {TraceId}",
+                        order.Id, ex.GetType().Name, httpContext.TraceIdentifier);
                 }
             }
 
