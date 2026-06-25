@@ -327,6 +327,16 @@ if (dbAvailable)
     }
 }
 
+// ── Seed catalog (categories + products) ─────────────────────────────────────
+// Idempotent: skips if Categories table already has rows.
+// Fully-qualified to avoid ambiguity with the local Product record below.
+if (dbAvailable)
+{
+    await using var catalogSeedScope = app.Services.CreateAsyncScope();
+    var catalogDb = catalogSeedScope.ServiceProvider.GetRequiredService<BeautyStoreDbContext>();
+    await BeautyStore.Api.Catalog.ProductSeeder.SeedAsync(catalogDb);
+}
+
 app.MapAuthEndpoints();
 ordersGroup.MapOrderEndpoints();
 

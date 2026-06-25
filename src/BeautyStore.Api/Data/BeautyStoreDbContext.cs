@@ -1,4 +1,5 @@
 using BeautyStore.Api.Auth;
+using BeautyStore.Api.Catalog;
 using BeautyStore.Api.Orders;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
@@ -9,6 +10,8 @@ namespace BeautyStore.Api.Data;
 public sealed class BeautyStoreDbContext(DbContextOptions<BeautyStoreDbContext> options)
     : IdentityDbContext<ApplicationUser, ApplicationRole, string>(options)
 {
+    public DbSet<Category> Categories => Set<Category>();
+    public DbSet<Catalog.Product> Products => Set<Catalog.Product>();
     public DbSet<Order> Orders => Set<Order>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -31,6 +34,33 @@ public sealed class BeautyStoreDbContext(DbContextOptions<BeautyStoreDbContext> 
             .ToTable("UserTokens", "Identity");
         modelBuilder.Entity<IdentityRoleClaim<string>>()
             .ToTable("RoleClaims", "Identity");
+
+        modelBuilder.Entity<Category>(e =>
+        {
+            e.ToTable("Categories", "dbo");
+            e.HasKey(c => c.Id);
+            e.Property(c => c.Name).HasMaxLength(100).IsRequired();
+            e.Property(c => c.Slug).HasMaxLength(100).IsRequired();
+            e.Property(c => c.Description).HasMaxLength(500);
+            e.Property(c => c.ImageUrl).HasMaxLength(500);
+            e.HasIndex(c => c.Slug).IsUnique();
+        });
+
+        modelBuilder.Entity<Catalog.Product>(e =>
+        {
+            e.ToTable("Products", "dbo");
+            e.HasKey(p => p.Id);
+            e.Property(p => p.Name).HasMaxLength(256).IsRequired();
+            e.Property(p => p.Brand).HasMaxLength(100).IsRequired();
+            e.Property(p => p.Description).HasMaxLength(2000);
+            e.Property(p => p.Price).HasColumnType("decimal(18,2)");
+            e.Property(p => p.ImageUrl).HasMaxLength(500);
+            e.HasOne(p => p.Category)
+             .WithMany(c => c.Products)
+             .HasForeignKey(p => p.CategoryId)
+             .OnDelete(DeleteBehavior.Restrict);
+            e.HasIndex(p => new { p.CategoryId, p.IsActive, p.IsFeatured });
+        });
 
         modelBuilder.Entity<Order>(e =>
         {
