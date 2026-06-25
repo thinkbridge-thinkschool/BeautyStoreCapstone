@@ -2,6 +2,7 @@ using Azure.Identity;
 using Azure.Messaging.ServiceBus;
 using Azure.Monitor.OpenTelemetry.AspNetCore;
 using BeautyStore.Api.Auth;
+using BeautyStore.Api.Admin;
 using BeautyStore.Api.Catalog;
 using BeautyStore.Api.Data;
 using BeautyStore.Api.Middleware;
@@ -286,6 +287,10 @@ var paymentsGroup  = app.MapGroup("/api/payments").WithTags("Payments")  .Requir
 var shippingGroup  = app.MapGroup("/api/shipping").WithTags("Shipping")  .RequireAuthorization();
 
 catalogGroup.MapCatalogEndpoints();
+
+var adminGroup = app.MapGroup("/api/admin").WithTags("Admin")
+    .RequireAuthorization(policy => policy.RequireRole("Admin"));
+adminGroup.MapAdminEndpoints();
 
 // ── Startup migrations ────────────────────────────────────────────────────────
 // MigrateAsync is idempotent — safe to run on every startup in all environments.
