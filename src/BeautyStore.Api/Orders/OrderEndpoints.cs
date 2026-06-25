@@ -14,17 +14,6 @@ namespace BeautyStore.Api.Orders;
 
 public static class OrderEndpoints
 {
-    private static readonly IReadOnlyDictionary<int, (string Name, decimal Price)> Catalog =
-        new Dictionary<int, (string Name, decimal Price)>
-        {
-            [1] = ("Pro Filt'r Soft Matte Foundation",      3800m),
-            [2] = ("Pillow Talk Matte Revolution Lipstick",  2850m),
-            [3] = ("Orgasm Blush Powder",                    2200m),
-            [4] = ("Protini Polypeptide Moisturiser",        5600m),
-            [5] = ("Facial Treatment Essence",              12500m),
-            [6] = ("Rose Gold Eyeshadow Palette",            4800m),
-        };
-
     public static void MapOrderEndpoints(this RouteGroupBuilder group)
     {
         // ── POST /api/orders ──────────────────────────────────────────────────
@@ -42,8 +31,11 @@ public static class OrderEndpoints
                     "Quantity must be at least 1.",
                     new Dictionary<string, string[]> { ["quantity"] = ["Must be greater than 0."] });
 
-            if (!Catalog.TryGetValue(req.ProductId, out var product))
-                throw new NotFoundException($"Product {req.ProductId} not found in the catalog.");
+            var product = await db.Products
+                .Where(p => p.Id == req.ProductId && p.IsActive)
+                .Select(p => new { p.Name, p.Price })
+                .FirstOrDefaultAsync()
+                ?? throw new NotFoundException($"Product {req.ProductId} not found in the catalog.");
 
             var userId = principal.FindFirstValue(JwtRegisteredClaimNames.Sub);
             if (userId is null) return Results.Unauthorized();

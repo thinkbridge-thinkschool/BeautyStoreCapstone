@@ -2,6 +2,7 @@ using Azure.Identity;
 using Azure.Messaging.ServiceBus;
 using Azure.Monitor.OpenTelemetry.AspNetCore;
 using BeautyStore.Api.Auth;
+using BeautyStore.Api.Catalog;
 using BeautyStore.Api.Data;
 using BeautyStore.Api.Middleware;
 using BeautyStore.Api.Orders;
@@ -284,24 +285,7 @@ var inventoryGroup = app.MapGroup("/api/inventory").WithTags("Inventory").Requir
 var paymentsGroup  = app.MapGroup("/api/payments").WithTags("Payments")  .RequireAuthorization();
 var shippingGroup  = app.MapGroup("/api/shipping").WithTags("Shipping")  .RequireAuthorization();
 
-// ── GET /api/catalog/products ─────────────────────────────────────────────────
-catalogGroup.MapGet("/products", (HttpRequest request, ILogger<Program> logger) =>
-{
-    logger.LogInformation("Catalog products requested. Returning {Count} items", 6);
-    var baseUrl = $"{request.Scheme}://{request.Host}";
-    Product[] products =
-    [
-        new(1, "Pro Filt'r Soft Matte Foundation",    "Fenty Beauty",       "Foundation",     3800m,  4.8f, $"{baseUrl}/images/product-1.jpg"),
-        new(2, "Pillow Talk Matte Revolution Lipstick","Charlotte Tilbury",  "Lipstick",       2850m,  4.9f, $"{baseUrl}/images/product-2.jpg"),
-        new(3, "Orgasm Blush Powder",                 "NARS Cosmetics",     "Blush",          2200m,  4.7f, $"{baseUrl}/images/product-3.jpg"),
-        new(4, "Protini Polypeptide Moisturiser",     "Drunk Elephant",     "Moisturiser",    5600m,  4.6f, $"{baseUrl}/images/product-4.jpg"),
-        new(5, "Facial Treatment Essence",            "SK-II",              "Toner / Essence",12500m, 4.8f, $"{baseUrl}/images/product-5.jpg"),
-        new(6, "Rose Gold Eyeshadow Palette",         "Huda Beauty",        "Eyeshadow",      4800m,  4.7f, $"{baseUrl}/images/product-6.jpg"),
-    ];
-    return Results.Ok(products);
-})
-.WithName("GetProducts")
-.WithSummary("Returns all featured catalog products.");
+catalogGroup.MapCatalogEndpoints();
 
 // ── Startup migrations ────────────────────────────────────────────────────────
 // MigrateAsync is idempotent — safe to run on every startup in all environments.
@@ -329,12 +313,11 @@ if (dbAvailable)
 
 // ── Seed catalog (categories + products) ─────────────────────────────────────
 // Idempotent: skips if Categories table already has rows.
-// Fully-qualified to avoid ambiguity with the local Product record below.
 if (dbAvailable)
 {
     await using var catalogSeedScope = app.Services.CreateAsyncScope();
     var catalogDb = catalogSeedScope.ServiceProvider.GetRequiredService<BeautyStoreDbContext>();
-    await BeautyStore.Api.Catalog.ProductSeeder.SeedAsync(catalogDb);
+    await ProductSeeder.SeedAsync(catalogDb);
 }
 
 app.MapAuthEndpoints();
@@ -347,10 +330,6 @@ app.MapFallback(() => Results.Problem(
     type:       "https://httpstatuses.io/404"));
 
 app.Run();
-
-// ── Catalog domain types ──────────────────────────────────────────────────────
-// Type declarations must follow all top-level statements (C# compiler rule).
-record Product(int Id, string Name, string Brand, string Category, decimal Price, float Rating, string ImageUrl);
 
 // ── Public partial for integration-test hosts ─────────────────────────────────
 public partial class Program { }
