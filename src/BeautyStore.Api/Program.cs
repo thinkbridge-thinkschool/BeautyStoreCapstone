@@ -304,10 +304,10 @@ catalogGroup.MapGet("/products", (HttpRequest request, ILogger<Program> logger) 
 .WithSummary("Returns all featured catalog products.");
 
 // ── Startup migrations ────────────────────────────────────────────────────────
-// Applies pending EF migrations automatically on startup in Development.
-// In Production, run migrations as a separate CI/CD step before deploying.
+// MigrateAsync is idempotent — safe to run on every startup in all environments.
+// For zero-downtime deploys in the future, move this to a pre-deploy job.
 
-if (app.Environment.IsDevelopment() && dbAvailable)
+if (dbAvailable)
 {
     await using var scope = app.Services.CreateAsyncScope();
     var db = scope.ServiceProvider.GetRequiredService<BeautyStoreDbContext>();
