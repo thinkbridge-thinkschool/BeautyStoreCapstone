@@ -1,0 +1,54 @@
+<div class="admin-shell" [class.sidebar-collapsed]="!sidebarOpen()">
+
+  <!-- ── Sidebar ─────────────────────────────────────────────── -->
+  <aside class="sidebar">
+    <div class="sidebar-header">
+      <span class="brand-icon">💄</span>
+      <span class="brand-name">BeautyStore</span>
+    </div>
+
+    <nav class="nav-menu">
+      @for (item of navItems; track item.path) {
+        <a
+          [routerLink]="item.path"
+          routerLinkActive="active"
+          [routerLinkActiveOptions]="{ exact: item.path === '/admin' }"
+          class="nav-item"
+        >
+          <span class="nav-icon">{{ item.icon }}</span>
+          <span class="nav-label">{{ item.label }}</span>
+        </a>
+      }
+    </nav>
+
+    <div class="sidebar-footer">
+      <div class="user-chip">
+        <div class="user-avatar">{{ currentUser()?.fullName?.charAt(0) | uppercase }}</div>
+        <div class="user-info">
+          <span class="user-name">{{ currentUser()?.fullName }}</span>
+          <span class="user-role">Administrator</span>
+        </div>
+      </div>
+      <button class="logout-btn" (click)="logout()" title="Sign out">
+        ⬡ Sign Out
+      </button>
+    </div>
+  </aside>
+
+  <!-- ── Main area ───────────────────────────────────────────── -->
+  <div class="main-area">
+    <header class="topbar">
+      <button class="toggle-btn" (click)="toggleSidebar()" title="Toggle sidebar">
+        ☰
+      </button>
+      <div class="topbar-right">
+        <a routerLink="/" class="store-link">← View Store</a>
+      </div>
+    </header>
+
+    <main class="page-content">
+      <router-outlet />
+    </main>
+  </div>
+
+</div>

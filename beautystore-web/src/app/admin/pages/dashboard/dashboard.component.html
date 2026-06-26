@@ -1,0 +1,102 @@
+<div class="dashboard">
+
+  <div class="page-header">
+    <h1 class="page-title">Dashboard</h1>
+    <span class="page-subtitle">Welcome back, here's what's happening today.</span>
+  </div>
+
+  @if (dashboard.isLoading()) {
+    <div class="stats-grid">
+      @for (_ of [1,2,3,4]; track $index) {
+        <div class="stat-card skeleton"></div>
+      }
+    </div>
+  }
+
+  @if (dashboard.error()) {
+    <div class="error-banner">Failed to load dashboard. Please refresh.</div>
+  }
+
+  @if (dashboard.value(); as data) {
+
+    <!-- ── Stats cards ──────────────────────────────────────────────────── -->
+    <div class="stats-grid">
+      <div class="stat-card">
+        <div class="stat-icon" style="--c:#6366f1">📦</div>
+        <div class="stat-body">
+          <span class="stat-value">{{ data.totalOrders | number }}</span>
+          <span class="stat-label">Total Orders</span>
+        </div>
+      </div>
+
+      <div class="stat-card">
+        <div class="stat-icon" style="--c:#10b981">₹</div>
+        <div class="stat-body">
+          <span class="stat-value">{{ data.totalRevenue | currency:'INR':'symbol-narrow':'1.0-0' }}</span>
+          <span class="stat-label">Total Revenue</span>
+        </div>
+      </div>
+
+      <div class="stat-card">
+        <div class="stat-icon" style="--c:#f59e0b">🛍️</div>
+        <div class="stat-body">
+          <span class="stat-value">{{ data.totalProducts | number }}</span>
+          <span class="stat-label">Active Products</span>
+        </div>
+      </div>
+
+      <div class="stat-card">
+        <div class="stat-icon" style="--c:#e91e8c">👥</div>
+        <div class="stat-body">
+          <span class="stat-value">{{ data.totalUsers | number }}</span>
+          <span class="stat-label">Registered Users</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Recent orders table ─────────────────────────────────────────── -->
+    <div class="card mt-6">
+      <div class="card-header">
+        <h2 class="card-title">Recent Orders</h2>
+        <a class="see-all" routerLink="/admin/orders">See all →</a>
+      </div>
+
+      @if (data.recentOrders.length === 0) {
+        <div class="empty-state">No orders yet.</div>
+      } @else {
+        <div class="table-wrap">
+          <table class="table">
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>Product</th>
+                <th>Qty</th>
+                <th>Total</th>
+                <th>Status</th>
+                <th>Date</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (order of data.recentOrders; track order.id) {
+                <tr>
+                  <td class="mono">#{{ order.id }}</td>
+                  <td class="product-cell">{{ order.productName }}</td>
+                  <td>{{ order.quantity }}</td>
+                  <td class="price-cell">{{ order.totalPrice | currency:'INR':'symbol-narrow':'1.0-0' }}</td>
+                  <td>
+                    <span class="badge" [class]="statusClass[order.status] ?? 'badge-blue'">
+                      {{ order.status }}
+                    </span>
+                  </td>
+                  <td class="date-cell">{{ order.createdAtUtc | date:'dd MMM, HH:mm' }}</td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      }
+    </div>
+
+  }
+
+</div>

@@ -1,0 +1,128 @@
+<div class="page-wrapper">
+
+  <div class="page-header">
+    <div>
+      <h1 class="page-title">Orders</h1>
+      <span class="page-subtitle">Manage and update order statuses</span>
+    </div>
+  </div>
+
+  <!-- Status filter tabs -->
+  <div class="filter-tabs">
+    <button
+      type="button"
+      class="filter-tab"
+      [class.active]="!statusFilter()"
+      (click)="filterByStatus(undefined)"
+    >All</button>
+    @for (s of statuses; track s) {
+      <button
+        type="button"
+        class="filter-tab"
+        [class.active]="statusFilter() === s"
+        (click)="filterByStatus(s)"
+      >{{ s }}</button>
+    }
+  </div>
+
+  <!-- Search / filter toolbar -->
+  <div class="filter-bar">
+    <input
+      type="search"
+      class="form-control search-input"
+      placeholder="Search by order #, customer email or name…"
+      [value]="searchInput()"
+      (input)="searchInput.set($any($event.target).value)"
+      aria-label="Search orders"
+    />
+    <input type="date" class="form-control date-input" title="From date" aria-label="From date"
+      [value]="dateFrom()"
+      (change)="dateFrom.set($any($event.target).value)" />
+    <span class="filter-sep">–</span>
+    <input type="date" class="form-control date-input" title="To date" aria-label="To date"
+      [value]="dateTo()"
+      (change)="dateTo.set($any($event.target).value)" />
+    <input type="number" class="form-control range-input" placeholder="Min ₹" min="0"
+      (change)="minAmount.set($any($event.target).value === '' ? undefined : +$any($event.target).value)" />
+    <input type="number" class="form-control range-input" placeholder="Max ₹" min="0"
+      (change)="maxAmount.set($any($event.target).value === '' ? undefined : +$any($event.target).value)" />
+  </div>
+
+  @if (ordersResource.isLoading()) {
+    <div class="card mt-4"><div class="empty-state">Loading orders…</div></div>
+  }
+
+  @if (ordersResource.error()) {
+    <div class="error-banner mt-4">Failed to load orders.</div>
+  }
+
+  @if (!ordersResource.isLoading()) {
+    <div class="card mt-4">
+      <div class="table-wrap">
+        <table class="table">
+          <thead>
+            <tr>
+              <th class="sortable" (click)="sort('date')">#{{ sortIcon('date') }}</th>
+              <th class="sortable" (click)="sort('customer')">Customer{{ sortIcon('customer') }}</th>
+              <th>Product</th>
+              <th>Qty</th>
+              <th class="sortable" (click)="sort('total')">Total{{ sortIcon('total') }}</th>
+              <th class="sortable" (click)="sort('date')">Date{{ sortIcon('date') }}</th>
+              <th class="sortable" (click)="sort('status')">Status{{ sortIcon('status') }}</th>
+              <th>Update</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (o of orders(); track o.id) {
+              <tr>
+                <td class="mono">#{{ o.id }}</td>
+                <td class="customer-col">
+                  <div class="customer-email">{{ o.userEmail || o.userId }}</div>
+                  @if (o.userName) {
+                    <div class="customer-name">{{ o.userName }}</div>
+                  }
+                </td>
+                <td class="product-col">{{ o.productName }}</td>
+                <td>{{ o.quantity }}</td>
+                <td class="price-col">{{ o.totalPrice | currency:'INR':'symbol-narrow':'1.0-0' }}</td>
+                <td class="date-col">{{ o.createdAtUtc | date:'dd MMM yy, HH:mm' }}</td>
+                <td>
+                  <span class="badge" [class]="statusClass[o.status] ?? 'badge-blue'">
+                    {{ o.status }}
+                  </span>
+                </td>
+                <td>
+                  <select
+                    class="status-select"
+                    aria-label="Update order status"
+                    title="Update order status"
+                    [value]="o.status"
+                    [disabled]="updatingId() === o.id"
+                    (change)="updateStatus(o, $any($event.target).value)"
+                  >
+                    @for (s of statuses; track s) {
+                      <option [value]="s" [selected]="s === o.status">{{ s }}</option>
+                    }
+                  </select>
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+
+      @if (orders().length === 0) {
+        <div class="empty-state">No orders match your filters.</div>
+      }
+
+      @if (totalPages() > 1) {
+        <div class="pagination">
+          <button type="button" class="page-btn" (click)="prevPage()" [disabled]="page() <= 1">← Prev</button>
+          <span>Page {{ page() }} of {{ totalPages() }}</span>
+          <button type="button" class="page-btn" (click)="nextPage()" [disabled]="page() >= totalPages()">Next →</button>
+        </div>
+      }
+    </div>
+  }
+
+</div>

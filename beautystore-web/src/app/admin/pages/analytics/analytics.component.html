@@ -1,0 +1,166 @@
+<div class="page-wrapper">
+
+  <div class="page-header">
+    <div>
+      <h1 class="page-title">Analytics</h1>
+      <span class="page-subtitle">Site-wide performance overview</span>
+    </div>
+    <button type="button" class="btn btn-secondary" (click)="analyticsResource.reload()">↻ Refresh</button>
+  </div>
+
+  @if (analyticsResource.isLoading()) {
+    <div class="card"><div class="empty-state">Loading analytics…</div></div>
+  }
+
+  @if (analyticsResource.error()) {
+    <div class="error-banner">Failed to load analytics. Please refresh.</div>
+  }
+
+  @if (data(); as d) {
+
+    <!-- ── KPI Cards ──────────────────────────────────────────────────────── -->
+    <div class="kpi-grid">
+      <div class="kpi-card">
+        <span class="kpi-label">Revenue Today</span>
+        <span class="kpi-value">{{ d.revenueToday | currency:'INR':'symbol-narrow':'1.0-0' }}</span>
+      </div>
+      <div class="kpi-card">
+        <span class="kpi-label">Revenue This Month</span>
+        <span class="kpi-value">{{ d.revenueThisMonth | currency:'INR':'symbol-narrow':'1.0-0' }}</span>
+      </div>
+      <div class="kpi-card">
+        <span class="kpi-label">Orders Today</span>
+        <span class="kpi-value">{{ d.ordersToday | number }}</span>
+      </div>
+      <div class="kpi-card">
+        <span class="kpi-label">Orders This Month</span>
+        <span class="kpi-value">{{ d.ordersThisMonth | number }}</span>
+      </div>
+    </div>
+
+    <!-- ── Stat Cards ─────────────────────────────────────────────────────── -->
+    <div class="stat-grid">
+      <div class="stat-card">
+        <span class="stat-icon">👥</span>
+        <span class="stat-value">{{ d.customerCount | number }}</span>
+        <span class="stat-label">Customers</span>
+      </div>
+      <div class="stat-card">
+        <span class="stat-icon">🛍️</span>
+        <span class="stat-value">{{ d.productCount | number }}</span>
+        <span class="stat-label">Active Products</span>
+      </div>
+      <div class="stat-card">
+        <span class="stat-icon">🗂️</span>
+        <span class="stat-value">{{ d.categoryCount | number }}</span>
+        <span class="stat-label">Categories</span>
+      </div>
+      <div class="stat-card" [class.stat-warning]="d.lowStockCount > 0">
+        <span class="stat-icon">⚠️</span>
+        <span class="stat-value">{{ d.lowStockCount | number }}</span>
+        <span class="stat-label">Low Stock (≤10)</span>
+      </div>
+    </div>
+
+    <!-- ── Revenue Trend ──────────────────────────────────────────────────── -->
+    <div class="card">
+      <h2 class="section-title">Revenue Trend — Last 30 Days</h2>
+
+      @if (d.revenueTrend.length === 0) {
+        <div class="empty-state">No orders in the last 30 days.</div>
+      } @else {
+        <div class="chart-wrap">
+          <svg viewBox="0 0 600 140" class="trend-svg" aria-label="Revenue trend chart" role="img">
+            <defs>
+              <linearGradient id="chartFill" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%"   stop-color="#6366f1" stop-opacity="0.25" />
+                <stop offset="100%" stop-color="#6366f1" stop-opacity="0.02" />
+              </linearGradient>
+            </defs>
+
+            <!-- Fill area -->
+            <polygon [attr.points]="fillArea()" class="chart-fill" />
+
+            <!-- Line -->
+            <polyline [attr.points]="polyline()" class="chart-line" fill="none" />
+
+            <!-- Data points with tooltip -->
+            @for (pt of trendPoints(); track pt.date) {
+              <circle [attr.cx]="pt.x" [attr.cy]="pt.y" r="3.5" class="chart-dot">
+                <title>{{ pt.date | date:'dd MMM yyyy' }} — ₹{{ pt.revenue | number:'1.0-0' }} ({{ pt.orders }} orders)</title>
+              </circle>
+            }
+          </svg>
+          <div class="chart-labels">
+            <span>{{ firstDate() | date:'dd MMM' }}</span>
+            <span>{{ lastDate()  | date:'dd MMM' }}</span>
+          </div>
+        </div>
+      }
+    </div>
+
+    <!-- ── Top Tables ─────────────────────────────────────────────────────── -->
+    <div class="tables-grid">
+
+      <!-- Top Products -->
+      <div class="card">
+        <h2 class="section-title">Top 5 Products by Revenue</h2>
+        @if (d.topProducts.length === 0) {
+          <div class="empty-state">No orders yet.</div>
+        } @else {
+          <table class="table">
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>Product</th>
+                <th class="num-col">Sold</th>
+                <th class="num-col">Revenue</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (p of d.topProducts; track p.productId; let i = $index) {
+                <tr>
+                  <td class="rank-cell">{{ i + 1 }}</td>
+                  <td>{{ p.productName }}</td>
+                  <td class="num-col">{{ p.totalSold | number }}</td>
+                  <td class="num-col">{{ p.revenue | currency:'INR':'symbol-narrow':'1.0-0' }}</td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        }
+      </div>
+
+      <!-- Top Categories -->
+      <div class="card">
+        <h2 class="section-title">Top 5 Categories by Revenue</h2>
+        @if (d.topCategories.length === 0) {
+          <div class="empty-state">No orders yet.</div>
+        } @else {
+          <table class="table">
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>Category</th>
+                <th class="num-col">Orders</th>
+                <th class="num-col">Revenue</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (c of d.topCategories; track c.categoryName; let i = $index) {
+                <tr>
+                  <td class="rank-cell">{{ i + 1 }}</td>
+                  <td>{{ c.categoryName }}</td>
+                  <td class="num-col">{{ c.orderCount | number }}</td>
+                  <td class="num-col">{{ c.revenue | currency:'INR':'symbol-narrow':'1.0-0' }}</td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        }
+      </div>
+
+    </div>
+  }
+
+</div>

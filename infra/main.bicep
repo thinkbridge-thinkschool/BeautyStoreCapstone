@@ -39,6 +39,10 @@ param sqlAdminLogin string = 'beautyadmin'
 @description('SQL administrator password — upper + lower + digit + special, >= 8 chars.')
 param sqlAdminPassword string
 
+@secure()
+@description('JWT symmetric signing key. Minimum 32 characters. Set as Jwt__Key in Container App.')
+param jwtKey string
+
 @description('Name of the Azure SQL database.')
 param databaseName string = 'BeautyStoreDb'
 
@@ -142,6 +146,7 @@ module api './modules/api.bicep' = {
     appInsightsConnectionString: observability.outputs.connectionString
     allowedOrigins             : allowedOrigins
     databaseName               : databaseName
+    jwtKey                     : jwtKey
     acrSku              : environment == 'prod' ? 'Standard' : 'Basic'
     minReplicas         : environment == 'prod' ? 2          : 0
     maxReplicas         : environment == 'prod' ? 10         : 3

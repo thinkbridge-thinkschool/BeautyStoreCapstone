@@ -13,20 +13,22 @@
 
   <ItemGroup>
     <!-- JWT bearer token validation -->
+    <PackageReference Include="Azure.Storage.Blobs" Version="12.*" />
     <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="10.0.*" />
 
     <!-- ASP.NET Core Identity + EF Core store -->
     <PackageReference Include="Microsoft.AspNetCore.Identity.EntityFrameworkCore" Version="10.0.*" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="10.0.9" />
 
     <!-- EF Core — SQL Server provider (BeautyStoreDb) -->
-    <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer"        Version="10.0.*" />
-    <PackageReference Include="Microsoft.EntityFrameworkCore.Design"           Version="10.0.*">
+    <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="10.0.*" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.*">
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
       <PrivateAssets>all</PrivateAssets>
     </PackageReference>
 
     <!-- Azure Identity — DefaultAzureCredential for MSI (Service Bus + SQL) -->
-    <PackageReference Include="Azure.Identity"             Version="1.*" />
+    <PackageReference Include="Azure.Identity" Version="1.*" />
 
     <!-- Azure Service Bus — publish OrderCreated events -->
     <PackageReference Include="Azure.Messaging.ServiceBus" Version="7.*" />
@@ -36,7 +38,7 @@
 
     <!-- OpenAPI document + Scalar UI (replaces Swashbuckle in .NET 9/10) -->
     <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.*" />
-    <PackageReference Include="Scalar.AspNetCore"            Version="2.*"    />
+    <PackageReference Include="Scalar.AspNetCore" Version="2.*" />
 
     <!-- Health checks — /health endpoint (used by Container Apps probes) -->
     <PackageReference Include="Microsoft.Extensions.Diagnostics.HealthChecks.EntityFrameworkCore" Version="10.0.*" />

@@ -60,6 +60,10 @@ param appInsightsConnectionString string
 param allowedOrigins string
 param databaseName   string = 'BeautyStoreDb'
 
+@secure()
+@description('Symmetric JWT signing key. Min 32 chars. Set as Jwt__Key env var in the Container App.')
+param jwtKey string
+
 // ── Scaling / sizing ──────────────────────────────────────────────────────────
 
 @description('Minimum replicas. Set 0 for scale-to-zero in dev (idle cost = $0).')
@@ -127,10 +131,9 @@ resource containerApp 'Microsoft.App/containerApps@2024-03-01' = {
         }
       ]
 
-      // Only infrastructure secret remains — the ACR pull password.
-      // Application secrets (jwt-key, sql-conn, service-bus-conn) are gone.
       secrets: [
         { name: 'registry-password', value: acr.listCredentials().passwords[0].value }
+        { name: 'jwt-key',           value: jwtKey }
       ]
     }
 
@@ -163,6 +166,8 @@ resource containerApp 'Microsoft.App/containerApps@2024-03-01' = {
             { name: 'ServiceBus__InventorySubscription',  value: 'inventory-subscription'  }
             { name: 'ServiceBus__ShippingSubscription',   value: 'shipping-subscription'   }
             { name: 'AllowedOrigins',                     value: allowedOrigins            }
+            // JWT signing key — stored as a Container App secret, not a plain env var
+            { name: 'Jwt__Key', secretRef: 'jwt-key' }
           ]
 
           probes: [

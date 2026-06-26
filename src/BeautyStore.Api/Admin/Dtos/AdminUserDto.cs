@@ -4,6 +4,8 @@ public sealed record AdminUserDto(
     string        Id,
     string        Email,
     string        UserName,
-    IList<string> Roles);
+    IList<string> Roles,
+    string        FullName  = "",
+    DateTime      CreatedAt = default);
 
 public sealed record AssignRoleRequest(string Role);

@@ -1,0 +1,71 @@
+@use '../../../admin/shared-admin' as *;
+
+.page-wrapper { max-width: 1200px; }
+
+.product-thumb {
+  width: 40px;
+  height: 40px;
+  object-fit: cover;
+  border-radius: 6px;
+  background: #f3f4f6;
+}
+
+.product-name  { font-weight: 600; color: #111827; font-size: 14px; }
+.product-brand { font-size: 12px; color: #6b7280; margin-top: 2px; }
+.category-cell { font-size: 13px; color: #4b5563; }
+.price-cell    { font-weight: 600; font-size: 14px; }
+
+.stock-ok  { color: #166534; font-weight: 600; }
+.stock-low { color: #991b1b; font-weight: 700; }
+
+.actions   { display: flex; gap: 4px; }
+.ml-4      { margin-left: 4px; }
+
+.mt-4 { margin-top: 16px; }
+
+// ── Filter bar ────────────────────────────────────────────────────────────────
+.filter-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 16px;
+}
+
+.filter-bar-row2 {
+  margin-top: 8px;
+}
+
+.search-input {
+  flex: 1 1 220px;
+  max-width: 320px;
+}
+
+.filter-sel {
+  width: auto;
+  flex: 0 0 auto;
+}
+
+.filter-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: #6b7280;
+  white-space: nowrap;
+}
+
+.filter-sep {
+  color: #9ca3af;
+  font-size: 12px;
+}
+
+.range-input {
+  width: 90px;
+  flex: 0 0 90px;
+}
+
+.sortable {
+  cursor: pointer;
+  -webkit-user-select: none;
+  user-select: none;
+  &:hover { background: #f0f0f0; }
+}

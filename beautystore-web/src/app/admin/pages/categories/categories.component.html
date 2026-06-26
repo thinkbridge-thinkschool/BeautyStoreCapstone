@@ -1,0 +1,142 @@
+<div class="page-wrapper">
+
+  <div class="page-header">
+    <div>
+      <h1 class="page-title">Categories</h1>
+      <span class="page-subtitle">Manage product categories</span>
+    </div>
+    <button class="btn btn-primary" (click)="openCreate()">+ Add Category</button>
+  </div>
+
+  @if (categoriesResource.isLoading()) {
+    <div class="card"><div class="empty-state">Loading categories…</div></div>
+  }
+
+  @if (categoriesResource.error()) {
+    <div class="error-banner">Failed to load categories.</div>
+  }
+
+  @if (categoriesResource.value(); as cats) {
+    <div class="card">
+      <div class="table-wrap">
+        <table class="table">
+          <thead>
+            <tr>
+              <th>Image</th>
+              <th>Name</th>
+              <th>Slug</th>
+              <th>Order</th>
+              <th>Products</th>
+              <th>Status</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (c of cats; track c.id) {
+              <tr>
+                <td>
+                  <img
+                    [src]="c.imageUrl || fallbackImage"
+                    class="cat-thumb" alt="{{ c.name }}"
+                  />
+                </td>
+                <td class="cat-name">{{ c.name }}</td>
+                <td><code class="slug-badge">/{{ c.slug }}</code></td>
+                <td class="order-cell">{{ c.displayOrder }}</td>
+                <td class="count-cell">{{ c.productCount }}</td>
+                <td>
+                  <span class="badge" [class]="c.isActive ? 'badge-active' : 'badge-inactive'">
+                    {{ c.isActive ? 'Active' : 'Hidden' }}
+                  </span>
+                </td>
+                <td>
+                  <div class="actions">
+                    <button type="button" class="btn-icon" (click)="openEdit(c)" title="Edit">✏️</button>
+                    <button
+                      type="button"
+                      class="btn-icon danger"
+                      (click)="deleteCategory(c)"
+                      [disabled]="deleting() === c.id"
+                      [title]="c.productCount > 0 ? 'Hide category' : 'Delete category'"
+                    >🗑️</button>
+                  </div>
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+
+      @if (cats.length === 0) {
+        <div class="empty-state">No categories yet. Add your first category.</div>
+      }
+    </div>
+  }
+
+</div>
+
+@if (creating()) {
+  <div class="modal-backdrop" (click)="closeModal()">
+    <div class="modal" (click)="$event.stopPropagation()">
+      <h2 class="modal-title">{{ editing() ? 'Edit Category' : 'New Category' }}</h2>
+
+      @if (error()) {
+        <div class="error-banner" style="margin-bottom:16px">{{ error() }}</div>
+      }
+
+      <form [formGroup]="form" (ngSubmit)="save()">
+        <div class="form-group">
+          <label class="form-label">Name *</label>
+          <input class="form-control" formControlName="name" placeholder="e.g. Skincare" (blur)="autoSlug()" />
+        </div>
+
+        <div class="form-group mt-4">
+          <label class="form-label">Slug *</label>
+          <input class="form-control" formControlName="slug" placeholder="e.g. skincare" />
+          <span class="form-hint">Lowercase letters, numbers, and hyphens only.</span>
+        </div>
+
+        <div class="form-row mt-4">
+          <div class="form-group">
+            <label class="form-label">Display Order</label>
+            <input class="form-control" type="number" formControlName="displayOrder" min="0" placeholder="0" title="Display Order" />
+          </div>
+          <div class="form-group">
+            <label class="form-label">Image URL</label>
+            <input class="form-control" formControlName="imageUrl" placeholder="https://…" />
+          </div>
+        </div>
+
+        <div class="form-group mt-4">
+          <label class="form-label">Upload Image</label>
+          <label class="upload-zone">
+            @if (form.get('imageUrl')?.value) {
+              <img [src]="form.get('imageUrl')?.value ?? ''" alt="Preview" />
+            }
+            {{ uploadingImage() ? 'Uploading…' : 'Click to upload (JPEG/PNG/WebP, max 5 MB)' }}
+            <input type="file" class="upload-input" accept="image/jpeg,image/png,image/webp" (change)="onFileSelected($event)" />
+          </label>
+        </div>
+
+        <div class="form-group mt-4">
+          <label class="form-label">Description</label>
+          <textarea class="form-control" formControlName="description" rows="2" placeholder="Optional…"></textarea>
+        </div>
+
+        @if (editing()) {
+          <label class="status-toggle mt-4">
+            <input type="checkbox" formControlName="isActive" />
+            Active (visible to customers)
+          </label>
+        }
+
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" (click)="closeModal()">Cancel</button>
+          <button type="submit" class="btn btn-primary" [disabled]="saving()">
+            {{ saving() ? 'Saving…' : (editing() ? 'Update' : 'Create') }}
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+}
