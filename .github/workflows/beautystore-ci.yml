@@ -1,0 +1,177 @@
+name: BeautyStore CI
+
+on:
+  push:
+    branches: [main, 'day-*']
+    paths:
+      - 'BeautyStoreCapstone/**'
+      - '.github/workflows/beautystore-ci.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'BeautyStoreCapstone/**'
+  workflow_dispatch:
+
+defaults:
+  run:
+    working-directory: BeautyStoreCapstone
+
+env:
+  DOTNET_VERSION: '10.0.x'
+  DOTNET_NOLOGO: true
+  DOTNET_SKIP_FIRST_TIME_EXPERIENCE: true
+  DOTNET_CLI_TELEMETRY_OPTOUT: true
+
+jobs:
+  # ── Job 1: Build & Unit Tests ──────────────────────────────────────────────
+  unit-tests:
+    name: Unit Tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET ${{ env.DOTNET_VERSION }}
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: Restore
+        run: dotnet restore src/BeautyStore.Api/BeautyStore.Api.csproj
+
+      - name: Restore unit test project
+        run: dotnet restore tests/BeautyStore.UnitTests/BeautyStore.UnitTests.csproj
+
+      - name: Build API
+        run: dotnet build src/BeautyStore.Api/BeautyStore.Api.csproj --no-restore --configuration Release
+
+      - name: Build unit tests
+        run: dotnet build tests/BeautyStore.UnitTests/BeautyStore.UnitTests.csproj --no-restore --configuration Release
+
+      - name: Run unit tests with coverage
+        run: >
+          dotnet test tests/BeautyStore.UnitTests/BeautyStore.UnitTests.csproj
+          --no-build
+          --configuration Release
+          --collect:"XPlat Code Coverage"
+          --settings tests/BeautyStore.UnitTests/coverlet.runsettings
+          --results-directory coverage/unit
+          --logger "trx;LogFileName=unit-results.trx"
+          --logger "console;verbosity=normal"
+
+      - name: Upload unit test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: unit-test-results
+          path: BeautyStoreCapstone/coverage/unit/
+
+      - name: Upload unit coverage report
+        uses: actions/upload-artifact@v4
+        with:
+          name: unit-coverage
+          path: BeautyStoreCapstone/coverage/unit/**/coverage.cobertura.xml
+
+  # ── Job 2: Integration Tests ───────────────────────────────────────────────
+  integration-tests:
+    name: Integration Tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET ${{ env.DOTNET_VERSION }}
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: Restore integration test project
+        run: dotnet restore tests/BeautyStore.IntegrationTests/BeautyStore.IntegrationTests.csproj
+
+      - name: Build integration tests
+        run: dotnet build tests/BeautyStore.IntegrationTests/BeautyStore.IntegrationTests.csproj --no-restore --configuration Release
+
+      - name: Run integration tests with coverage
+        run: >
+          dotnet test tests/BeautyStore.IntegrationTests/BeautyStore.IntegrationTests.csproj
+          --no-build
+          --configuration Release
+          --collect:"XPlat Code Coverage"
+          --settings tests/BeautyStore.IntegrationTests/coverlet.runsettings
+          --results-directory coverage/integration
+          --logger "trx;LogFileName=integration-results.trx"
+          --logger "console;verbosity=normal"
+
+      - name: Upload integration test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: integration-test-results
+          path: BeautyStoreCapstone/coverage/integration/
+
+      - name: Upload integration coverage report
+        uses: actions/upload-artifact@v4
+        with:
+          name: integration-coverage
+          path: BeautyStoreCapstone/coverage/integration/**/coverage.cobertura.xml
+
+  # ── Job 3: Coverage Report ─────────────────────────────────────────────────
+  coverage-report:
+    name: Coverage Report
+    runs-on: ubuntu-latest
+    needs: [unit-tests, integration-tests]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download unit coverage
+        uses: actions/download-artifact@v4
+        with:
+          name: unit-coverage
+          path: coverage/unit
+
+      - name: Download integration coverage
+        uses: actions/download-artifact@v4
+        with:
+          name: integration-coverage
+          path: coverage/integration
+
+      - name: Install ReportGenerator
+        run: dotnet tool install --global dotnet-reportgenerator-globaltool
+
+      - name: Merge & generate HTML report
+        working-directory: ${{ github.workspace }}
+        run: >
+          reportgenerator
+          -reports:"coverage/unit/**/coverage.cobertura.xml;coverage/integration/**/coverage.cobertura.xml"
+          -targetdir:coverage/report
+          -reporttypes:"HtmlInline_AzurePipelines;Cobertura;MarkdownSummaryGithub"
+          -assemblyfilters:"+BeautyStore.Api*;-*.Tests*;-*.UnitTests*;-*.IntegrationTests*"
+          "-classfilters:-BeautyStore.Api.Migrations*;-BeautyStore.Api.Admin*;-BeautyStore.Api.Storage*;-BeautyStore.Api.Data.BeautyStoreDbContextFactory;-OutboxRelayWorker;-Microsoft.AspNetCore.OpenApi.Generated;-System.Runtime.CompilerServices"
+
+      - name: Write coverage summary to job
+        working-directory: ${{ github.workspace }}
+        run: cat coverage/report/SummaryGithub.md >> $GITHUB_STEP_SUMMARY
+
+      - name: Upload merged HTML coverage report
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-html-report
+          path: coverage/report/
+
+      - name: Enforce minimum coverage threshold (70%)
+        working-directory: ${{ github.workspace }}
+        run: |
+          LINE_RATE=$(grep -oP 'line-rate="\K[0-9.]+' coverage/report/Cobertura.xml | head -1)
+          echo "Line coverage: $LINE_RATE"
+          python3 -c "
+          rate = float('$LINE_RATE')
+          pct  = rate * 100
+          print(f'Coverage: {pct:.1f}%')
+          if pct < 70:
+              raise SystemExit(f'FAIL: {pct:.1f}% < 70% minimum')
+          print('PASS: meets 70% threshold')
+          "

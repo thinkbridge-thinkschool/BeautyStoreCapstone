@@ -1,9 +1,11 @@
 using Azure.Identity;
 using Azure.Messaging.ServiceBus;
 using Azure.Monitor.OpenTelemetry.AspNetCore;
+using Azure.Storage.Blobs;
 using BeautyStore.Api.Auth;
 using BeautyStore.Api.Admin;
 using BeautyStore.Api.Catalog;
+using BeautyStore.Api.Storage;
 using BeautyStore.Api.Data;
 using BeautyStore.Api.Middleware;
 using BeautyStore.Api.Orders;
@@ -73,12 +75,18 @@ var dbAvailable      = !string.IsNullOrWhiteSpace(connectionString);
 
 if (dbAvailable)
 {
+    var isSqlite = connectionString!.TrimStart().StartsWith("Data Source", StringComparison.OrdinalIgnoreCase);
     builder.Services.AddDbContext<BeautyStoreDbContext>(options =>
-        options.UseSqlServer(connectionString, sql =>
-        {
-            sql.CommandTimeout(30);
-            sql.EnableRetryOnFailure(maxRetryCount: 5, maxRetryDelay: TimeSpan.FromSeconds(10), errorNumbersToAdd: null);
-        }));
+    {
+        if (isSqlite)
+            options.UseSqlite(connectionString);
+        else
+            options.UseSqlServer(connectionString, sql =>
+            {
+                sql.CommandTimeout(30);
+                sql.EnableRetryOnFailure(maxRetryCount: 5, maxRetryDelay: TimeSpan.FromSeconds(10), errorNumbersToAdd: null);
+            });
+    });
 
     // ── ASP.NET Core Identity ─────────────────────────────────────────────────
     // AddIdentityCore omits cookie auth — we issue our own JWTs, so no cookie scheme.
@@ -105,6 +113,19 @@ var sbNamespace = builder.Configuration["ServiceBus:Namespace"];
 if (!string.IsNullOrWhiteSpace(sbNamespace))
 {
     builder.Services.AddSingleton(_ => new ServiceBusClient(sbNamespace, new DefaultAzureCredential()));
+}
+
+// ── Azure Blob Storage (Managed Identity) ────────────────────────────────────
+// Storage:AccountName is the storage account name (e.g. "beautystoredev5npzse").
+// DefaultAzureCredential uses the Container App MSI in Azure.
+// Omit locally to skip blob registration — upload endpoint returns 503.
+
+var storageAccount = builder.Configuration["Storage:AccountName"];
+if (!string.IsNullOrWhiteSpace(storageAccount))
+{
+    var blobUri = new Uri($"https://{storageAccount}.blob.core.windows.net");
+    builder.Services.AddSingleton(_ => new BlobServiceClient(blobUri, new DefaultAzureCredential()));
+    builder.Services.AddSingleton<IBlobStorageService, BlobStorageService>();
 }
 
 // ── OpenTelemetry + Azure Monitor ────────────────────────────────────────────
@@ -202,14 +223,10 @@ app.UseStatusCodePages(async ctx =>
         _   => ("An error occurred",                         $"https://httpstatuses.io/{res.StatusCode}"),
     };
 
-    res.ContentType = "application/problem+json";
-    await res.WriteAsJsonAsync(new
-    {
-        type,
-        title,
-        status  = res.StatusCode,
-        traceId,
-    });
+    await res.WriteAsJsonAsync(
+        new { type, title, status = res.StatusCode, traceId },
+        options: (System.Text.Json.JsonSerializerOptions?)null,
+        contentType: "application/problem+json");
 });
 
 app.Use(async (context, next) =>
@@ -291,16 +308,22 @@ catalogGroup.MapCatalogEndpoints();
 var adminGroup = app.MapGroup("/api/admin").WithTags("Admin")
     .RequireAuthorization(policy => policy.RequireRole("Admin"));
 adminGroup.MapAdminEndpoints();
+adminGroup.MapStorageEndpoints();
 
 // ── Startup migrations ────────────────────────────────────────────────────────
 // MigrateAsync is idempotent — safe to run on every startup in all environments.
 // For zero-downtime deploys in the future, move this to a pre-deploy job.
+// SQLite (used in integration-test environments) does not support the SQL Server
+// migration SQL; EnsureCreatedAsync creates the schema directly from the model.
 
 if (dbAvailable)
 {
     await using var scope = app.Services.CreateAsyncScope();
     var db = scope.ServiceProvider.GetRequiredService<BeautyStoreDbContext>();
-    await db.Database.MigrateAsync();
+    if (db.Database.ProviderName?.Contains("Sqlite", StringComparison.OrdinalIgnoreCase) == true)
+        await db.Database.EnsureCreatedAsync();
+    else
+        await db.Database.MigrateAsync();
 }
 
 // ── Seed Identity roles ───────────────────────────────────────────────────────
