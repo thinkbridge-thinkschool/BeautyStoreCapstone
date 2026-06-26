@@ -10,6 +10,7 @@ interface OrderItem {
   quantity: number;
   totalPrice: number;
   status: string;
+  createdAtUtc: string;
 }
 
 @Component({
@@ -30,7 +31,7 @@ interface OrderItem {
         <div class="container">
           <div class="page-title">
             <h1>My Orders</h1>
-            <a routerLink="/" class="btn-shop">Shop More</a>
+            <a routerLink="/products" class="btn-shop">Shop More</a>
           </div>
 
           @if (loading()) {
@@ -48,7 +49,7 @@ interface OrderItem {
               <div class="empty-icon">🛍️</div>
               <h2>No orders yet</h2>
               <p>Start shopping to place your first order.</p>
-              <a routerLink="/" class="btn-primary">Browse Products</a>
+              <a routerLink="/products" class="btn-primary">Browse Products</a>
             </div>
           } @else {
             <div class="orders-list">
@@ -61,6 +62,8 @@ interface OrderItem {
                       <span>Qty: {{ order.quantity }}</span>
                       <span class="dot">·</span>
                       <span>₹{{ order.totalPrice.toLocaleString() }}</span>
+                      <span class="dot">·</span>
+                      <span>{{ formatDate(order.createdAtUtc) }}</span>
                     </div>
                   </div>
                   <div class="order-actions">
@@ -271,6 +274,10 @@ export class MyOrdersComponent implements OnInit {
       next: (data) => { this.orders.set(data); this.loading.set(false); },
       error: ()    => { this.error.set('Failed to load orders.'); this.loading.set(false); },
     });
+  }
+
+  formatDate(iso: string): string {
+    return new Date(iso).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
   }
 
   remove(orderId: number) {

@@ -7,6 +7,8 @@ public sealed record AdminOrderDto(
     int      Quantity,
     decimal  TotalPrice,
     string   Status,
-    DateTime CreatedAtUtc);
+    DateTime CreatedAtUtc,
+    string   UserEmail = "",
+    string   UserName  = "");
 
 public sealed record UpdateOrderStatusRequest(string Status);

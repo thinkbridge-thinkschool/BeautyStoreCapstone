@@ -1,0 +1,95 @@
+<div class="page-wrapper">
+
+  <div class="page-header">
+    <div>
+      <h1 class="page-title">Users</h1>
+      <span class="page-subtitle">{{ totalCount() }} registered users</span>
+    </div>
+  </div>
+
+  <!-- ── Filter toolbar ────────────────────────────────────────────────────── -->
+  <div class="filter-bar">
+    <input
+      type="search"
+      class="form-control search-input"
+      placeholder="Search by name or email…"
+      [value]="searchInput()"
+      (input)="searchInput.set($any($event.target).value)"
+      aria-label="Search users"
+    />
+    <select class="form-control filter-sel" aria-label="Role filter" (change)="setRoleFilter($any($event.target).value)">
+      <option value="">All roles</option>
+      <option value="Admin">Admin</option>
+      <option value="Customer">Customer</option>
+    </select>
+  </div>
+
+  @if (usersResource.isLoading()) {
+    <div class="card mt-4"><div class="empty-state">Loading users…</div></div>
+  }
+
+  @if (usersResource.error()) {
+    <div class="error-banner mt-4">Failed to load users.</div>
+  }
+
+  @if (!usersResource.isLoading()) {
+    <div class="card mt-4">
+      <div class="table-wrap">
+        <table class="table">
+          <thead>
+            <tr>
+              <th class="sortable" (click)="sort('email')">Email{{ sortIcon('email') }}</th>
+              <th class="sortable" (click)="sort('username')">Username{{ sortIcon('username') }}</th>
+              <th>Full Name</th>
+              <th>Roles</th>
+              <th class="sortable" (click)="sort('createdat')">Registered{{ sortIcon('createdat') }}</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (u of users(); track u.id) {
+              <tr>
+                <td class="email-col">{{ u.email }}</td>
+                <td class="username-col">{{ u.userName }}</td>
+                <td class="name-col">{{ u.fullName || '—' }}</td>
+                <td>
+                  <div class="roles-row">
+                    @for (r of u.roles; track r) {
+                      <span class="badge" [class]="r === 'Admin' ? 'badge-purple' : 'badge-blue'">
+                        {{ r }}
+                      </span>
+                    }
+                    @if (u.roles.length === 0) {
+                      <span class="no-roles">No roles</span>
+                    }
+                  </div>
+                </td>
+                <td class="date-col">{{ u.createdAt | date:'dd MMM yyyy' }}</td>
+                <td>
+                  @if (!u.roles.includes('Admin')) {
+                    <button type="button" class="btn btn-sm btn-secondary" (click)="assignAdmin(u)">
+                      Make Admin
+                    </button>
+                  }
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+
+      @if (users().length === 0) {
+        <div class="empty-state">No users match your search.</div>
+      }
+
+      @if (totalPages() > 1) {
+        <div class="pagination">
+          <button type="button" class="page-btn" (click)="prevPage()" [disabled]="page() <= 1">← Prev</button>
+          <span>Page {{ page() }} of {{ totalPages() }}</span>
+          <button type="button" class="page-btn" (click)="nextPage()" [disabled]="page() >= totalPages()">Next →</button>
+        </div>
+      }
+    </div>
+  }
+
+</div>

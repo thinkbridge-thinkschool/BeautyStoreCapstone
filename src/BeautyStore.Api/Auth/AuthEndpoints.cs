@@ -73,6 +73,76 @@ public static class AuthEndpoints
         .WithSummary("Sign in with email and password.")
         .AllowAnonymous();
 
+        // ── POST /api/auth/admin/register ────────────────────────────────────
+        // First-time setup only. Returns 409 once any Admin account exists.
+        group.MapPost("/admin/register", async (
+            RegisterRequest                             req,
+            [FromServices] UserManager<ApplicationUser> userManager,
+            [FromServices] JwtService                   jwt) =>
+        {
+            var existing = await userManager.GetUsersInRoleAsync("Admin");
+            if (existing.Count > 0)
+                return Results.Problem(
+                    title:      "Admin already configured",
+                    detail:     "An admin account already exists. Use the login form instead.",
+                    statusCode: StatusCodes.Status409Conflict);
+
+            var user = new ApplicationUser
+            {
+                UserName = req.Email,
+                Email    = req.Email,
+                FullName = req.FullName,
+            };
+
+            var result = await userManager.CreateAsync(user, req.Password);
+            if (!result.Succeeded)
+                return Results.BadRequest(result.Errors.Select(e => e.Description));
+
+            await userManager.AddToRoleAsync(user, "Admin");
+
+            var roles   = await userManager.GetRolesAsync(user);
+            var access  = jwt.GenerateAccessToken(user, roles);
+            var refresh = JwtService.GenerateRefreshToken();
+            await userManager.SetAuthenticationTokenAsync(user, "BeautyStore", "RefreshToken", refresh);
+
+            return Results.Ok(new AuthResponse(access, refresh, user.Email!, user.FullName, roles));
+        })
+        .WithName("AdminRegister")
+        .WithSummary("First-time setup: creates the initial admin account. Locked once an admin exists.")
+        .AllowAnonymous();
+
+        // ── POST /api/auth/admin/login ────────────────────────────────────────
+        // Standard login + Admin-role check. Returns 403 for non-admin accounts.
+        group.MapPost("/admin/login", async (
+            LoginRequest                                    req,
+            [FromServices] UserManager<ApplicationUser>     userManager,
+            [FromServices] SignInManager<ApplicationUser>   signInManager,
+            [FromServices] JwtService                       jwt) =>
+        {
+            var user = await userManager.FindByEmailAsync(req.Email);
+            if (user is null) return Results.Unauthorized();
+
+            var result = await signInManager.CheckPasswordSignInAsync(
+                user, req.Password, lockoutOnFailure: false);
+            if (!result.Succeeded) return Results.Unauthorized();
+
+            var roles = await userManager.GetRolesAsync(user);
+            if (!roles.Contains("Admin"))
+                return Results.Problem(
+                    title:      "Access denied",
+                    detail:     "This account does not have administrator privileges.",
+                    statusCode: StatusCodes.Status403Forbidden);
+
+            var access  = jwt.GenerateAccessToken(user, roles);
+            var refresh = JwtService.GenerateRefreshToken();
+            await userManager.SetAuthenticationTokenAsync(user, "BeautyStore", "RefreshToken", refresh);
+
+            return Results.Ok(new AuthResponse(access, refresh, user.Email!, user.FullName, roles));
+        })
+        .WithName("AdminLogin")
+        .WithSummary("Admin sign-in. Returns 403 if credentials are valid but account is not an administrator.")
+        .AllowAnonymous();
+
         // ── GET /api/auth/me ──────────────────────────────────────────────────
         // MapInboundClaims = false → claim names stay as raw JWT names (sub, email, …).
         group.MapGet("/me", async (

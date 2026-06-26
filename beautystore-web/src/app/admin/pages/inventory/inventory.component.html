@@ -1,0 +1,138 @@
+<div class="page-wrapper">
+
+  <div class="page-header">
+    <div>
+      <h1 class="page-title">Inventory</h1>
+      <span class="page-subtitle">{{ totalCount() | number }} products — update stock inline</span>
+    </div>
+    <button type="button" class="btn btn-secondary" (click)="inventoryResource.reload()">↻ Refresh</button>
+  </div>
+
+  <!-- ── Toolbar ─────────────────────────────────────────────────────────── -->
+  <div class="toolbar">
+    <input
+      type="search"
+      class="form-control search-input"
+      placeholder="Search by product, brand or category…"
+      [value]="searchInput()"
+      (input)="searchInput.set($any($event.target).value)"
+      aria-label="Search inventory"
+    />
+
+    <select
+      class="form-control filter-select"
+      aria-label="Filter by status"
+      (change)="setIsActiveFilter($any($event.target).value)"
+    >
+      <option value="">All products</option>
+      <option value="true">Active only</option>
+      <option value="false">Inactive only</option>
+    </select>
+
+    <label class="status-toggle">
+      <input
+        type="checkbox"
+        [checked]="lowStockOnly()"
+        (change)="setLowStockOnly($any($event.target).checked)"
+      />
+      Low stock only
+    </label>
+  </div>
+
+  @if (saveError()) {
+    <div class="error-banner">{{ saveError() }}</div>
+  }
+
+  @if (inventoryResource.isLoading()) {
+    <div class="card mt-4"><div class="empty-state">Loading inventory…</div></div>
+  }
+
+  @if (inventoryResource.error()) {
+    <div class="error-banner mt-4">Failed to load inventory. Please refresh.</div>
+  }
+
+  @if (!inventoryResource.isLoading()) {
+    <div class="card mt-4">
+      <div class="table-wrap">
+        <table class="table">
+          <thead>
+            <tr>
+              <th class="sortable" (click)="sort('name')">Product{{ sortIcon('name') }}</th>
+              <th class="sortable" (click)="sort('category')">Category{{ sortIcon('category') }}</th>
+              <th class="sortable stock-th" (click)="sort('stock')">Stock{{ sortIcon('stock') }}</th>
+              <th class="sortable price-th" (click)="sort('price')">Price{{ sortIcon('price') }}</th>
+              <th>Low Stock</th>
+              <th>Status</th>
+              <th class="actions-th">Save</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (item of inventoryItems(); track item.productId) {
+              <tr [class.row-saving]="savingId() === item.productId">
+                <td class="product-col">{{ item.productName }}</td>
+                <td>{{ item.categoryName }}</td>
+                <td class="stock-cell">
+                  <div class="stock-edit">
+                    <input
+                      type="number"
+                      class="stock-input"
+                      min="0"
+                      [attr.value]="item.currentStock"
+                      [disabled]="savingId() === item.productId"
+                      (input)="onStockInput(item.productId, +$any($event.target).value)"
+                      (keyup.enter)="saveStock(item.productId, item.currentStock)"
+                      aria-label="Stock for {{ item.productName }}"
+                    />
+                    @if (isStockDirty(item.productId, item.currentStock)) {
+                      <button
+                        type="button"
+                        class="btn-save"
+                        title="Save stock"
+                        [disabled]="savingId() === item.productId"
+                        (click)="saveStock(item.productId, item.currentStock)"
+                      >{{ savingId() === item.productId ? '…' : '✓' }}</button>
+                      <button
+                        type="button"
+                        class="btn-cancel-edit"
+                        title="Cancel"
+                        [disabled]="savingId() === item.productId"
+                        (click)="cancelEdit(item.productId)"
+                      >✕</button>
+                    }
+                  </div>
+                </td>
+                <td class="price-col">{{ item.price | currency:'INR':'symbol-narrow':'1.0-0' }}</td>
+                <td>
+                  @if (item.lowStock) {
+                    <span class="badge badge-red">Low</span>
+                  } @else {
+                    <span class="badge badge-green">OK</span>
+                  }
+                </td>
+                <td>
+                  <span class="badge" [class.badge-active]="item.isActive" [class.badge-inactive]="!item.isActive">
+                    {{ item.isActive ? 'Active' : 'Hidden' }}
+                  </span>
+                </td>
+                <td></td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+
+      @if (inventoryItems().length === 0) {
+        <div class="empty-state">No products match your filters.</div>
+      }
+
+      @if (totalPages() > 1) {
+        <div class="pagination">
+          <button class="page-btn" (click)="prevPage()" [disabled]="page() <= 1">← Prev</button>
+          <span>Page {{ page() }} of {{ totalPages() }}</span>
+          <button class="page-btn" (click)="nextPage()" [disabled]="page() >= totalPages()">Next →</button>
+        </div>
+      }
+    </div>
+  }
+
+</div>

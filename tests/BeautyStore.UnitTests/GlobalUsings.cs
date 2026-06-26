@@ -1,0 +1,9 @@
+global using Xunit;
+global using FluentAssertions;
+global using Moq;
+global using Microsoft.Extensions.Configuration;
+global using System.IdentityModel.Tokens.Jwt;
+global using System.Security.Claims;
+global using BeautyStore.Api.Auth;
+global using BeautyStore.Api.Exceptions;
+global using BeautyStore.Api.Orders;

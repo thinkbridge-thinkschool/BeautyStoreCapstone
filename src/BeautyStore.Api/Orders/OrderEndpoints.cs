@@ -98,7 +98,7 @@ public static class OrderEndpoints
             var orders = await db.Orders
                 .Where(o => o.UserId == userId)
                 .OrderByDescending(o => o.CreatedAtUtc)
-                .Select(o => new OrderResponse(o.Id, o.ProductName, o.Quantity, o.TotalPrice, o.Status))
+                .Select(o => new OrderResponse(o.Id, o.ProductName, o.Quantity, o.TotalPrice, o.Status, o.CreatedAtUtc))
                 .ToListAsync();
 
             return Results.Ok(orders);

@@ -1,0 +1,250 @@
+<div class="page-wrapper">
+
+  <div class="page-header">
+    <div>
+      <h1 class="page-title">Settings</h1>
+      <span class="page-subtitle">Application configuration &amp; system health</span>
+    </div>
+    <button type="button" class="btn btn-secondary" (click)="settingsResource.reload()">↻ Refresh</button>
+  </div>
+
+  @if (settingsResource.isLoading()) {
+    <div class="card mt-4"><div class="empty-state">Loading settings…</div></div>
+  }
+
+  @if (settingsResource.error()) {
+    <div class="error-banner mt-4">Failed to load settings.</div>
+  }
+
+  @if (settingsResource.value(); as d) {
+    <div class="settings-grid">
+
+      <!-- ── Application ────────────────────────────────────────────────── -->
+      <div class="card">
+        <div class="card-header">
+          <h2 class="card-title">Application</h2>
+        </div>
+        <div class="card-body">
+          <table class="info-table">
+            <tbody>
+              <tr>
+                <th scope="row">App Name</th>
+                <td>{{ d.application.appName }}</td>
+              </tr>
+              <tr>
+                <th scope="row">Version</th>
+                <td class="mono">{{ d.application.version }}</td>
+              </tr>
+              <tr>
+                <th scope="row">Environment</th>
+                <td>
+                  <span class="badge" [class]="envBadge(d.application.environment)">
+                    {{ d.application.environment }}
+                  </span>
+                </td>
+              </tr>
+              <tr>
+                <th scope="row">API Base URL</th>
+                <td class="mono">{{ d.application.apiBaseUrl }}</td>
+              </tr>
+              <tr>
+                <th scope="row">Build Timestamp</th>
+                <td>{{ d.application.buildTimestamp | date:'dd MMM yyyy, HH:mm' }} UTC</td>
+              </tr>
+              <tr>
+                <th scope="row">Current User</th>
+                <td>{{ currentUser()?.email ?? '—' }}</td>
+              </tr>
+              <tr>
+                <th scope="row">Role</th>
+                <td>{{ currentUser()?.roles?.at(0) ?? '—' }}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- ── Azure Services ─────────────────────────────────────────────── -->
+      <div class="card">
+        <div class="card-header">
+          <h2 class="card-title">Azure Services</h2>
+        </div>
+        <div class="card-body">
+          <table class="info-table">
+            <tbody>
+              <tr>
+                <th scope="row">Azure SQL</th>
+                <td>
+                  <span class="badge" [class]="statusBadge(d.azure.sqlDatabase.status)">
+                    {{ d.azure.sqlDatabase.status }}
+                  </span>
+                </td>
+              </tr>
+              <tr>
+                <th scope="row">Blob Storage</th>
+                <td>
+                  <span class="badge" [class]="statusBadge(d.azure.blobStorage.status)">
+                    {{ d.azure.blobStorage.status }}
+                  </span>
+                </td>
+              </tr>
+              <tr>
+                <th scope="row">Service Bus</th>
+                <td>
+                  <span class="badge" [class]="statusBadge(d.azure.serviceBus.status)">
+                    {{ d.azure.serviceBus.status }}
+                  </span>
+                </td>
+              </tr>
+              <tr>
+                <th scope="row">App Insights</th>
+                <td>
+                  <span class="badge" [class]="statusBadge(d.azure.applicationInsights.status)">
+                    {{ d.azure.applicationInsights.status }}
+                  </span>
+                </td>
+              </tr>
+              <tr>
+                <th scope="row">OpenTelemetry</th>
+                <td>
+                  <span class="badge" [class]="statusBadge(d.azure.openTelemetry.status)">
+                    {{ d.azure.openTelemetry.status }}
+                  </span>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- ── Security ───────────────────────────────────────────────────── -->
+      <div class="card">
+        <div class="card-header">
+          <h2 class="card-title">Security</h2>
+        </div>
+        <div class="card-body">
+          <table class="info-table">
+            <tbody>
+              <tr>
+                <th scope="row">JWT Authentication</th>
+                <td>
+                  <span class="badge" [class]="boolBadge(d.security.jwtEnabled)">
+                    {{ d.security.jwtEnabled ? 'Enabled' : 'Disabled' }}
+                  </span>
+                </td>
+              </tr>
+              <tr>
+                <th scope="row">Identity</th>
+                <td>
+                  <span class="badge" [class]="boolBadge(d.security.identityEnabled)">
+                    {{ d.security.identityEnabled ? 'Enabled' : 'Disabled' }}
+                  </span>
+                </td>
+              </tr>
+              <tr>
+                <th scope="row">Role Authorization</th>
+                <td>
+                  <span class="badge" [class]="boolBadge(d.security.roleAuthorizationEnabled)">
+                    {{ d.security.roleAuthorizationEnabled ? 'Enabled' : 'Disabled' }}
+                  </span>
+                </td>
+              </tr>
+              <tr>
+                <th scope="row">Exception Middleware</th>
+                <td>
+                  <span class="badge" [class]="boolBadge(d.security.exceptionMiddlewareEnabled)">
+                    {{ d.security.exceptionMiddlewareEnabled ? 'Enabled' : 'Disabled' }}
+                  </span>
+                </td>
+              </tr>
+              <tr>
+                <th scope="row">ProblemDetails</th>
+                <td>
+                  <span class="badge" [class]="boolBadge(d.security.problemDetailsEnabled)">
+                    {{ d.security.problemDetailsEnabled ? 'Enabled' : 'Disabled' }}
+                  </span>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- ── System Health ───────────────────────────────────────────────── -->
+      <div class="card">
+        <div class="card-header">
+          <h2 class="card-title">System Health</h2>
+        </div>
+        <div class="card-body">
+          <table class="info-table">
+            <tbody>
+              <tr>
+                <th scope="row">Database</th>
+                <td>
+                  <span class="badge" [class]="boolBadge(d.system.databaseReachable)">
+                    {{ d.system.databaseReachable ? 'Reachable' : 'Unreachable' }}
+                  </span>
+                </td>
+              </tr>
+              <tr>
+                <th scope="row">Health Endpoint</th>
+                <td class="mono">{{ d.system.healthEndpoint }}</td>
+              </tr>
+              <tr>
+                <th scope="row">Products</th>
+                <td>{{ d.system.productCount }}</td>
+              </tr>
+              <tr>
+                <th scope="row">Categories</th>
+                <td>{{ d.system.categoryCount }}</td>
+              </tr>
+              <tr>
+                <th scope="row">Users</th>
+                <td>{{ d.system.userCount }}</td>
+              </tr>
+              <tr>
+                <th scope="row">Current Time (UTC)</th>
+                <td>{{ d.system.currentTimeUtc | date:'dd MMM yyyy, HH:mm:ss' }}</td>
+              </tr>
+              <tr>
+                <th scope="row">Server Uptime</th>
+                <td>{{ d.system.serverUptime }}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- ── Deployment ─────────────────────────────────────────────────── -->
+      <div class="card card-full">
+        <div class="card-header">
+          <h2 class="card-title">Deployment</h2>
+        </div>
+        <div class="card-body">
+          <table class="info-table info-table--wide">
+            <tbody>
+              <tr>
+                <th scope="row">Container App</th>
+                <td class="mono">{{ d.deployment.containerAppName }}</td>
+              </tr>
+              <tr>
+                <th scope="row">Revision</th>
+                <td class="mono">{{ d.deployment.containerRevision }}</td>
+              </tr>
+              <tr>
+                <th scope="row">Environment</th>
+                <td>{{ d.deployment.deploymentEnvironment }}</td>
+              </tr>
+              <tr>
+                <th scope="row">Git Commit</th>
+                <td class="mono">{{ d.deployment.gitCommit }}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+    </div>
+  }
+
+</div>

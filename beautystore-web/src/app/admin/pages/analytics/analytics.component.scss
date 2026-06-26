@@ -1,0 +1,143 @@
+// ── KPI Cards ─────────────────────────────────────────────────────────────────
+.kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+  margin-bottom: 16px;
+
+  @media (max-width: 900px) { grid-template-columns: repeat(2, 1fr); }
+  @media (max-width: 480px) { grid-template-columns: 1fr; }
+}
+
+.kpi-card {
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  padding: 20px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  box-shadow: 0 1px 3px rgba(0,0,0,.06);
+}
+
+.kpi-label {
+  font-size: 12px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: .05em;
+  color: #6b7280;
+}
+
+.kpi-value {
+  font-size: 28px;
+  font-weight: 700;
+  color: #111827;
+  line-height: 1;
+}
+
+// ── Stat Cards ────────────────────────────────────────────────────────────────
+.stat-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+  margin-bottom: 16px;
+
+  @media (max-width: 900px) { grid-template-columns: repeat(2, 1fr); }
+  @media (max-width: 480px) { grid-template-columns: repeat(2, 1fr); }
+}
+
+.stat-card {
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  text-align: center;
+  transition: border-color .15s;
+
+  &.stat-warning {
+    background: #fffbeb;
+    border-color: #fbbf24;
+
+    .stat-value { color: #b45309; }
+    .stat-label { color: #92400e; }
+  }
+}
+
+.stat-icon  { font-size: 22px; }
+.stat-value { font-size: 22px; font-weight: 700; color: #111827; }
+.stat-label { font-size: 12px; color: #6b7280; font-weight: 500; }
+
+// ── Section heading ───────────────────────────────────────────────────────────
+.section-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: #374151;
+  margin: 0 0 16px;
+}
+
+// ── Revenue trend chart ───────────────────────────────────────────────────────
+.chart-wrap {
+  width: 100%;
+}
+
+.trend-svg {
+  width: 100%;
+  height: 160px;
+  display: block;
+  overflow: visible;
+}
+
+.chart-fill {
+  fill: url(#chartFill);
+}
+
+.chart-line {
+  stroke: #6366f1;
+  stroke-width: 2;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}
+
+.chart-dot {
+  fill: #6366f1;
+  stroke: #fff;
+  stroke-width: 1.5;
+  cursor: default;
+  transition: r .1s;
+
+  &:hover { r: 5; }
+}
+
+.chart-labels {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 6px;
+  font-size: 11px;
+  color: #9ca3af;
+  padding: 0 4px;
+}
+
+// ── Top tables grid ───────────────────────────────────────────────────────────
+.tables-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin-top: 16px;
+
+  @media (max-width: 768px) { grid-template-columns: 1fr; }
+}
+
+.rank-cell {
+  font-weight: 700;
+  color: #6b7280;
+  width: 32px;
+}
+
+.num-col {
+  text-align: right;
+  white-space: nowrap;
+}

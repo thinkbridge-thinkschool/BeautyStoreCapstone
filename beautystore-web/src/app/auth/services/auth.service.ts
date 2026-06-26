@@ -33,6 +33,18 @@ export class AuthService {
       .pipe(tap(res => this.persist(res)));
   }
 
+  adminLogin(req: LoginRequest) {
+    return this.http
+      .post<AuthResponse>(`${environment.apiUrl}/api/auth/admin/login`, req)
+      .pipe(tap(res => this.persist(res)));
+  }
+
+  adminRegister(req: RegisterRequest) {
+    return this.http
+      .post<AuthResponse>(`${environment.apiUrl}/api/auth/admin/register`, req)
+      .pipe(tap(res => this.persist(res)));
+  }
+
   getCurrentUser() {
     return this.http
       .get<CurrentUser>(`${environment.apiUrl}/api/auth/me`)
