@@ -138,6 +138,9 @@ interface CategoryGroup {
                     <div class="card-body">
                       <p class="card-brand">{{ product.brand }}</p>
                       <h3 class="card-name">{{ product.name }}</h3>
+                      @if (product.description) {
+                        <p class="card-desc">{{ product.description.length > 80 ? product.description.slice(0, 77) + '…' : product.description }}</p>
+                      }
                       <div class="stars">
                         @for (i of [1,2,3,4,5]; track i) { <span [class.filled]="i <= filledStars(product.rating)">★</span> }
                         <span class="rating-val">{{ product.rating.toFixed(1) }}</span>
@@ -184,6 +187,9 @@ interface CategoryGroup {
                 <div class="card-body">
                   <p class="card-brand">{{ product.brand }}</p>
                   <h3 class="card-name">{{ product.name }}</h3>
+                  @if (product.description) {
+                    <p class="card-desc">{{ product.description.length > 80 ? product.description.slice(0, 77) + '…' : product.description }}</p>
+                  }
                   <div class="stars">
                     @for (i of [1,2,3,4,5]; track i) { <span [class.filled]="i <= filledStars(product.rating)">★</span> }
                     <span class="rating-val">{{ product.rating.toFixed(1) }}</span>
@@ -327,7 +333,8 @@ interface CategoryGroup {
 
     .card-body { padding: 18px 20px 20px; flex: 1; display: flex; flex-direction: column; }
     .card-brand { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px; color: #ff4fa3; margin-bottom: 4px; }
-    .card-name { font-size: 0.95rem; font-weight: 600; color: #1a1a2e; line-height: 1.35; margin-bottom: 10px; flex: 1; }
+    .card-name { font-size: 0.95rem; font-weight: 600; color: #1a1a2e; line-height: 1.35; margin-bottom: 5px; }
+    .card-desc { font-size: 0.78rem; color: #9ca3af; line-height: 1.45; margin-bottom: 10px; flex: 1; }
     .stars { display: flex; align-items: center; gap: 1px; margin-bottom: 12px; }
     .stars span { color: #e5e7eb; font-size: 0.9rem; }
     .stars span.filled { color: #f59e0b; }

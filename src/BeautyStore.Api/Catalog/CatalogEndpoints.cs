@@ -61,7 +61,8 @@ public static class CatalogEndpoints
                 .Take(pageSize)
                 .Select(p => new ProductDto(
                     p.Id, p.CategoryId, p.Category.Name,
-                    p.Name, p.Brand, p.Price, p.Rating,
+                    p.Name, p.Brand, p.Description,
+                    p.Price, p.Rating,
                     p.Stock, p.ImageUrl, p.IsFeatured))
                 .ToListAsync();
 
@@ -98,7 +99,8 @@ public static class CatalogEndpoints
                 .Take(4)
                 .Select(r => new ProductDto(
                     r.Id, r.CategoryId, p.CategoryName,
-                    r.Name, r.Brand, r.Price, r.Rating,
+                    r.Name, r.Brand, r.Description,
+                    r.Price, r.Rating,
                     r.Stock, r.ImageUrl, r.IsFeatured))
                 .ToListAsync();
 
@@ -127,7 +129,8 @@ public static class CatalogEndpoints
                 .OrderByDescending(p => p.Rating)
                 .Select(p => new ProductDto(
                     p.Id, p.CategoryId, category.Name,
-                    p.Name, p.Brand, p.Price, p.Rating,
+                    p.Name, p.Brand, p.Description,
+                    p.Price, p.Rating,
                     p.Stock, p.ImageUrl, p.IsFeatured))
                 .ToListAsync();
 
@@ -185,7 +188,8 @@ public static class CatalogEndpoints
                 .Take(pageSize)
                 .Select(p => new ProductDto(
                     p.Id, p.CategoryId, p.Category.Name,
-                    p.Name, p.Brand, p.Price, p.Rating,
+                    p.Name, p.Brand, p.Description,
+                    p.Price, p.Rating,
                     p.Stock, p.ImageUrl, p.IsFeatured))
                 .ToListAsync();
 

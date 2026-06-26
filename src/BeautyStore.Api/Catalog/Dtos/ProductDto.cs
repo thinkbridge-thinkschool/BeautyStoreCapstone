@@ -6,6 +6,7 @@ public sealed record ProductDto(
     string  CategoryName,
     string  Name,
     string  Brand,
+    string? Description,
     decimal Price,
     float   Rating,
     int     Stock,
