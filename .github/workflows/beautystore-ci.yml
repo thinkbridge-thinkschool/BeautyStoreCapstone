@@ -4,17 +4,21 @@ on:
   push:
     branches: [main, 'day-*']
     paths:
-      - 'BeautyStoreCapstone/**'
+      - 'src/**'
+      - 'tests/**'
+      - 'beautystore-web/**'
       - '.github/workflows/beautystore-ci.yml'
   pull_request:
     branches: [main]
     paths:
-      - 'BeautyStoreCapstone/**'
+      - 'src/**'
+      - 'tests/**'
+      - 'beautystore-web/**'
   workflow_dispatch:
 
 defaults:
   run:
-    working-directory: BeautyStoreCapstone
+    working-directory: .
 
 env:
   DOTNET_VERSION: '10.0.x'
@@ -65,13 +69,13 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: unit-test-results
-          path: BeautyStoreCapstone/coverage/unit/
+          path: coverage/unit/
 
       - name: Upload unit coverage report
         uses: actions/upload-artifact@v4
         with:
           name: unit-coverage
-          path: BeautyStoreCapstone/coverage/unit/**/coverage.cobertura.xml
+          path: coverage/unit/**/coverage.cobertura.xml
 
   # ── Job 2: Integration Tests ───────────────────────────────────────────────
   integration-tests:
@@ -109,13 +113,13 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: integration-test-results
-          path: BeautyStoreCapstone/coverage/integration/
+          path: coverage/integration/
 
       - name: Upload integration coverage report
         uses: actions/upload-artifact@v4
         with:
           name: integration-coverage
-          path: BeautyStoreCapstone/coverage/integration/**/coverage.cobertura.xml
+          path: coverage/integration/**/coverage.cobertura.xml
 
   # ── Job 3: Coverage Report ─────────────────────────────────────────────────
   coverage-report:

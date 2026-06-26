@@ -4,7 +4,7 @@ on:
   push:
     branches: [main]
     paths:
-      - 'BeautyStoreCapstone/src/BeautyStore.Api/**'
+      - 'src/BeautyStore.Api/**'
       - '.github/workflows/deploy-api.yml'
   workflow_dispatch:          # manual trigger from GitHub UI
 
@@ -32,8 +32,8 @@ jobs:
       - name: Build & push image
         uses: docker/build-push-action@v6
         with:
-          context: BeautyStoreCapstone
-          file: BeautyStoreCapstone/src/BeautyStore.Api/Dockerfile
+          context: .
+          file: src/BeautyStore.Api/Dockerfile
           push: true
           tags: |
             ${{ env.ACR_REGISTRY }}/${{ env.ACR_REPO }}:${{ github.sha }}
