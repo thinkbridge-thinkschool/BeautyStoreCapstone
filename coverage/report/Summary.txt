@@ -1,0 +1,86 @@
+Summary
+  Generated on: 26-06-2026 - 18:10:37
+  Coverage date: 26-06-2026 - 18:09:19 - 26-06-2026 - 18:09:30
+  Parser: MultiReport (2x Cobertura)
+  Assemblies: 1
+  Classes: 64
+  Files: 49
+  Line coverage: 29.1%
+  Covered lines: 1100
+  Uncovered lines: 2677
+  Coverable lines: 3777
+  Total lines: 4975
+  Branch coverage: 15.8% (45 of 284)
+  Covered branches: 45
+  Total branches: 284
+  Method coverage: 35.8% (116 of 324)
+  Full method coverage: 33.3% (108 of 324)
+  Covered methods: 116
+  Fully covered methods: 108
+  Total methods: 324
+
+BeautyStore.Api                                                  29.1%
+  BeautyStore.Api.Admin.AdminEndpoints                           33.9%
+  BeautyStore.Api.Admin.Dtos.AdminCategoryDto                       0%
+  BeautyStore.Api.Admin.Dtos.AdminOrderDto                          0%
+  BeautyStore.Api.Admin.Dtos.AdminProductDto                        0%
+  BeautyStore.Api.Admin.Dtos.AdminUserDto                           0%
+  BeautyStore.Api.Admin.Dtos.AnalyticsDto                           0%
+  BeautyStore.Api.Admin.Dtos.ApplicationInfoDto                     0%
+  BeautyStore.Api.Admin.Dtos.AssignRoleRequest                      0%
+  BeautyStore.Api.Admin.Dtos.AzureStatusDto                         0%
+  BeautyStore.Api.Admin.Dtos.CreateCategoryRequest                  0%
+  BeautyStore.Api.Admin.Dtos.CreateProductRequest                   0%
+  BeautyStore.Api.Admin.Dtos.DashboardDto                           0%
+  BeautyStore.Api.Admin.Dtos.DeploymentInfoDto                      0%
+  BeautyStore.Api.Admin.Dtos.InventoryItemDto                       0%
+  BeautyStore.Api.Admin.Dtos.RevenueTrendDto                        0%
+  BeautyStore.Api.Admin.Dtos.SecurityInfoDto                        0%
+  BeautyStore.Api.Admin.Dtos.ServiceStatusDto                       0%
+  BeautyStore.Api.Admin.Dtos.SettingsDto                            0%
+  BeautyStore.Api.Admin.Dtos.SystemHealthDto                        0%
+  BeautyStore.Api.Admin.Dtos.TopCategoryDto                         0%
+  BeautyStore.Api.Admin.Dtos.TopProductDto                          0%
+  BeautyStore.Api.Admin.Dtos.UpdateCategoryRequest                  0%
+  BeautyStore.Api.Admin.Dtos.UpdateOrderStatusRequest               0%
+  BeautyStore.Api.Admin.Dtos.UpdateProductRequest                   0%
+  BeautyStore.Api.Admin.Dtos.UpdateStockRequest                     0%
+  BeautyStore.Api.Auth.ApplicationRole                            100%
+  BeautyStore.Api.Auth.ApplicationUser                            100%
+  BeautyStore.Api.Auth.AuthEndpoints                             73.7%
+  BeautyStore.Api.Auth.Dtos.AuthResponse                          100%
+  BeautyStore.Api.Auth.Dtos.LoginRequest                          100%
+  BeautyStore.Api.Auth.Dtos.RegisterRequest                       100%
+  BeautyStore.Api.Auth.JwtService                                 100%
+  BeautyStore.Api.Catalog.CatalogEndpoints                       95.4%
+  BeautyStore.Api.Catalog.Category                                 80%
+  BeautyStore.Api.Catalog.Dtos.CategoryDto                        100%
+  BeautyStore.Api.Catalog.Dtos.PagedResult<T>                     100%
+  BeautyStore.Api.Catalog.Dtos.ProductDetailDto                   100%
+  BeautyStore.Api.Catalog.Dtos.ProductDto                         100%
+  BeautyStore.Api.Catalog.Product                                85.7%
+  BeautyStore.Api.Catalog.ProductSeeder                           100%
+  BeautyStore.Api.Data.BeautyStoreDbContext                       100%
+  BeautyStore.Api.Data.BeautyStoreDbContextFactory                  0%
+  BeautyStore.Api.Exceptions.BusinessRuleException                100%
+  BeautyStore.Api.Exceptions.ConflictException                    100%
+  BeautyStore.Api.Exceptions.ForbiddenException                   100%
+  BeautyStore.Api.Exceptions.NotFoundException                    100%
+  BeautyStore.Api.Exceptions.ValidationException                  100%
+  BeautyStore.Api.Middleware.ExceptionHandlingMiddleware         80.7%
+  BeautyStore.Api.Migrations.AddCategoriesAndProducts               0%
+  BeautyStore.Api.Migrations.AddOrders                              0%
+  BeautyStore.Api.Migrations.BeautyStoreDbContextModelSnapshot      0%
+  BeautyStore.Api.Migrations.InitialIdentity                        0%
+  BeautyStore.Api.Orders.Dtos.CreateOrderRequest                  100%
+  BeautyStore.Api.Orders.Dtos.OrderResponse                       100%
+  BeautyStore.Api.Orders.Dtos.PlaceOrderRequest                     0%
+  BeautyStore.Api.Orders.Events.OrderCreatedEvent                   0%
+  BeautyStore.Api.Orders.Order                                    100%
+  BeautyStore.Api.Orders.OrderEndpoints                          83.8%
+  BeautyStore.Api.Storage.BlobStorageService                        0%
+  BeautyStore.Api.Storage.StorageEndpoints                       48.4%
+  Microsoft.AspNetCore.OpenApi.Generated                          1.3%
+  OutboxRelayWorker                                                 0%
+  Program                                                          83%
+  System.Runtime.CompilerServices                                   0%

@@ -1,0 +1,53 @@
+Summary
+  Generated on: 26-06-2026 - 18:17:46
+  Coverage date: 26-06-2026 - 18:09:19 - 26-06-2026 - 18:09:30
+  Parser: MultiReport (2x Cobertura)
+  Assemblies: 1
+  Classes: 31
+  Files: 31
+  Line coverage: 65.7%
+  Covered lines: 1097
+  Uncovered lines: 571
+  Coverable lines: 1668
+  Total lines: 2183
+  Branch coverage: 64.2% (45 of 70)
+  Covered branches: 45
+  Total branches: 70
+  Method coverage: 90.5% (115 of 127)
+  Full method coverage: 85% (108 of 127)
+  Covered methods: 115
+  Fully covered methods: 108
+  Total methods: 127
+
+BeautyStore.Api                                            65.7%
+  BeautyStore.Api.Admin.AdminEndpoints                     33.9%
+  BeautyStore.Api.Auth.ApplicationRole                      100%
+  BeautyStore.Api.Auth.ApplicationUser                      100%
+  BeautyStore.Api.Auth.AuthEndpoints                       73.7%
+  BeautyStore.Api.Auth.Dtos.AuthResponse                    100%
+  BeautyStore.Api.Auth.Dtos.LoginRequest                    100%
+  BeautyStore.Api.Auth.Dtos.RegisterRequest                 100%
+  BeautyStore.Api.Auth.JwtService                           100%
+  BeautyStore.Api.Catalog.CatalogEndpoints                 95.4%
+  BeautyStore.Api.Catalog.Category                           80%
+  BeautyStore.Api.Catalog.Dtos.CategoryDto                  100%
+  BeautyStore.Api.Catalog.Dtos.PagedResult<T>               100%
+  BeautyStore.Api.Catalog.Dtos.ProductDetailDto             100%
+  BeautyStore.Api.Catalog.Dtos.ProductDto                   100%
+  BeautyStore.Api.Catalog.Product                          85.7%
+  BeautyStore.Api.Catalog.ProductSeeder                     100%
+  BeautyStore.Api.Data.BeautyStoreDbContext                 100%
+  BeautyStore.Api.Exceptions.BusinessRuleException          100%
+  BeautyStore.Api.Exceptions.ConflictException              100%
+  BeautyStore.Api.Exceptions.ForbiddenException             100%
+  BeautyStore.Api.Exceptions.NotFoundException              100%
+  BeautyStore.Api.Exceptions.ValidationException            100%
+  BeautyStore.Api.Middleware.ExceptionHandlingMiddleware   80.7%
+  BeautyStore.Api.Orders.Dtos.CreateOrderRequest            100%
+  BeautyStore.Api.Orders.Dtos.OrderResponse                 100%
+  BeautyStore.Api.Orders.Dtos.PlaceOrderRequest               0%
+  BeautyStore.Api.Orders.Events.OrderCreatedEvent             0%
+  BeautyStore.Api.Orders.Order                              100%
+  BeautyStore.Api.Orders.OrderEndpoints                    83.8%
+  BeautyStore.Api.Storage.StorageEndpoints                 48.4%
+  Program                                                    83%
